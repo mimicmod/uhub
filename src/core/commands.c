@@ -247,6 +247,10 @@ static enum command_parse_status command_extract_arguments(struct command_base* 
 				break;
 
 			case 'n':
+				data = hub_malloc(sizeof(*data));
+				data->type = type_string;
+				data->data.string = strdup(token);
+				break;
 			case 'm':
 			case 'p':
 				data = hub_malloc(sizeof(*data));

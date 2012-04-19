@@ -18,6 +18,7 @@
  */
 
 #include "plugin_api/handle.h"
+#include "plugin_api/command_api.h"
 #include <sqlite3.h>
 #include "util/memory.h"
 #include "util/list.h"
@@ -25,6 +26,7 @@
 #include "util/misc.h"
 #include "util/log.h"
 #include "util/config_token.h"
+#include "util/cbuffer.h"
 
 // #define DEBUG_SQL
 
@@ -35,8 +37,15 @@ static void set_error_message(struct plugin_handle* plugin, const char* msg)
 
 struct sql_data
 {
-	int exclusive;
+	int register_self;
 	sqlite3* db;
+	struct plugin_command_handle* command_register_handle; ///<<< "A handle to the !register command."
+	struct plugin_command_handle* command_password_handle; ///<<< "A handle to the !password command."
+	struct plugin_command_handle* command_useradd_handle; ///<<< "A handle to the !useradd command."
+	struct plugin_command_handle* command_userdel_handle; ///<<< "A handle to the !userdel command."
+  struct plugin_command_handle* command_usermod_handle; ///<<< "A handle to the !usermod command."
+	struct plugin_command_handle* command_userinfo_handle; ///<<< "A handle to the !userinfo command."
+  struct plugin_command_handle* command_userpass_handle; ///<<< "A handle to the !userpass command."
 };
 
 static int null_callback(void* ptr, int argc, char **argv, char **colName) { return 0; }
@@ -69,6 +78,20 @@ static int sql_execute(struct sql_data* sql, int (*callback)(void* ptr, int argc
 	return rc;
 }
 
+static void create_users_table(struct plugin_handle* plugin)
+{
+	const char* table_create = "CREATE TABLE IF NOT EXISTS users"
+		"("
+			"nickname CHAR NOT NULL UNIQUE,"
+			"password CHAR NOT NULL,"
+			"credentials CHAR NOT NULL DEFAULT 'user',"
+			"created TIMESTAMP DEFAULT (DATETIME('NOW')),"
+			"activity TIMESTAMP DEFAULT (DATETIME('NOW'))"
+		");";
+	
+	struct sql_data* sql = (struct sql_data*) plugin->ptr;
+	sql_execute(sql, null_callback, NULL, table_create);
+}
 
 static struct sql_data* parse_config(const char* line, struct plugin_handle* plugin)
 {
@@ -105,10 +128,10 @@ static struct sql_data* parse_config(const char* line, struct plugin_handle* plu
 				}
 			}
 		}
-		else if (strcmp(cfg_settings_get_key(setting), "exclusive") == 0)
+		else if (strcmp(cfg_settings_get_key(setting), "register_self") == 0)
 		{
-			if (!string_to_boolean(cfg_settings_get_value(setting), &data->exclusive))
-				data->exclusive = 1;
+			if (!string_to_boolean(cfg_settings_get_value(setting), &data->register_self))
+				data->register_self = 1;
 		}
 		else
 		{
@@ -233,14 +256,14 @@ static plugin_st update_user(struct plugin_handle* plugin, struct auth_info* use
 	char* nick = strdup(sql_escape_string(user->nickname));
 	char* pass = strdup(sql_escape_string(user->password));
 	const char* cred = auth_cred_to_string(user->credentials);
-	int rc = sql_execute(sql, null_callback, NULL, "INSERT INTO users (nickname, password, credentials) VALUES('%s', '%s', '%s');", nick, pass, cred);
+	int rc = sql_execute(sql, null_callback, NULL, "UPDATE users SET password='%s', credentials='%s' WHERE nickname='%s';", pass, cred, nick);
 
 	free(nick);
 	free(pass);
 
 	if (rc <= 0)
 	{
-		fprintf(stderr, "Unable to add user \"%s\"\n", user->nickname);
+		fprintf(stderr, "Unable to update user \"%s\"\n", user->nickname);
 		return st_deny;
 	}
 	return st_allow;
@@ -250,13 +273,248 @@ static plugin_st update_user(struct plugin_handle* plugin, struct auth_info* use
 static plugin_st delete_user(struct plugin_handle* plugin, struct auth_info* user)
 {
 	struct sql_data* sql = (struct sql_data*) plugin->ptr;
-	if (sql->exclusive)
+
+	char* nick = strdup(sql_escape_string(user->nickname));
+	int rc = sql_execute(sql, null_callback, NULL, "DELETE FROM users WHERE nickname='%s';", nick);
+
+	free(nick);
+
+	if (rc <= 0)
+	{
+		fprintf(stderr, "Unable to delete user \"%s\"\n", user->nickname);
 		return st_deny;
-	return st_default;
+	}
+	return st_allow;
+}
+
+static int command_register(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct sql_data* sql = (struct sql_data*) plugin->ptr;
+	if (sql->register_self == 1)
+	{
+    struct auth_info data;
+    struct plugin_command_arg_data* args = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+    char* password = args->data.string;
+    
+    strncpy(data.nickname, user->nick, MAX_NICK_LEN);
+    strncpy(data.password, password, MAX_PASS_LEN);
+    data.nickname[MAX_NICK_LEN] = '\0';
+    data.password[MAX_PASS_LEN] = '\0';
+    data.credentials = auth_cred_user;
+    
+    if (register_user(plugin, &data) == st_allow)
+    {
+    	cbuf_append_format(buf, "User \"%s\" registered.", user->nick);
+    }
+    else
+    {
+    	cbuf_append_format(buf, "Unable to register user \"%s\".", user->nick);
+    }
+  }
+  else
+    cbuf_append_format(buf, "Automatic registrations are disabled at this moment."); // FIXME: Should send application to ops
+	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+	return 0;
+}
+
+static int command_password(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info data;
+	struct plugin_command_arg_data* args = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	char* password = args->data.string;
+
+	strncpy(data.nickname, user->nick, MAX_NICK_LEN);
+	strncpy(data.password, password, MAX_PASS_LEN);
+	data.nickname[MAX_NICK_LEN] = '\0';
+	data.password[MAX_PASS_LEN] = '\0';
+	data.credentials = user->credentials;
+
+	if (update_user(plugin, &data) == st_allow)
+		cbuf_append(buf, "Password changed.");
+	else
+		cbuf_append_format(buf, "Unable to change password for user \"%s\".", user->nick);
+
+	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+
+	return 0;
+}
+
+static int command_useradd(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info data;
+	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+  char* nick = arg1->data.string;
+	char* password = arg2->data.string;
+	enum auth_credentials credentials;
+	
+	credentials = auth_cred_user;
+
+	strncpy(data.nickname, nick, MAX_NICK_LEN);
+	strncpy(data.password, password, MAX_PASS_LEN);
+	data.nickname[MAX_NICK_LEN] = '\0';
+	data.password[MAX_PASS_LEN] = '\0';
+	data.credentials = credentials;
+
+	if (register_user(plugin, &data) == st_allow)
+		cbuf_append_format(buf, "User \"%s\" registered.", nick);
+	else
+		cbuf_append_format(buf, "Unable to register user \"%s\".", nick);
+
+	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+
+	return 0;
+}
+
+static int command_userdel(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info data;
+	struct auth_info* userinfo = hub_malloc(sizeof(struct auth_info));
+	struct plugin_command_arg_data* arg = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	char* nick = arg->data.string;
+
+	get_user(plugin, nick, userinfo);
+	if (userinfo)
+	{
+	  if (userinfo->credentials >= user->credentials)
+	    cbuf_append_format(buf, "Insufficient rights.");
+	  else
+	  {
+  	  strncpy(data.nickname, nick, MAX_NICK_LEN);
+  	  data.nickname[MAX_NICK_LEN] = '\0';
+  
+	    if (delete_user(plugin, &data) == st_allow)
+		    cbuf_append_format(buf, "User \"%s\" deleted.", nick);
+	    else
+		    cbuf_append_format(buf, "Unable to delete user \"%s\".", nick);
+    }
+  }
+	
+  plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+	hub_free(userinfo);
+	
+  return 0;
+}
+
+static int command_usermod(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info data;
+	struct auth_info* userinfo = hub_malloc(sizeof(struct auth_info));
+	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+	char* nick = arg1->data.string;
+	enum auth_credentials credentials = arg2->data.credentials;
+  
+	get_user(plugin, nick, userinfo);
+	if (userinfo)
+	{
+		strncpy(data.password, userinfo->password, MAX_PASS_LEN);
+	  strncpy(data.nickname, nick, MAX_NICK_LEN);
+	  data.nickname[MAX_NICK_LEN] = '\0';
+	  data.password[MAX_PASS_LEN] = '\0';
+	  data.credentials = credentials;
+
+  	if (update_user(plugin, &data) == st_allow)
+  		cbuf_append_format(buf, "Credentials of user \"%s\" changed from \"%s\" to \"%s\".", nick, auth_cred_to_string(userinfo->credentials), auth_cred_to_string(data.credentials));  		
+  	else
+  	  cbuf_append_format(buf, "Unable to change credentials for user \"%s\".", nick);
+	}
+	else
+		cbuf_append_format(buf, "Unable to find user \"%s\".", nick);
+
+  plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+  cbuf_destroy(buf);
+	hub_free(userinfo);
+	
+	return 0;
+}
+
+static int command_userinfo(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info* userinfo = hub_malloc(sizeof(struct auth_info));
+	struct plugin_command_arg_data* arg = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	char* nick = arg->data.string;
+
+	get_user(plugin, nick, userinfo);
+	if (userinfo)
+		cbuf_append_format(buf, "Nick: %s, Credentials: %s", nick, auth_cred_to_string(userinfo->credentials));
+	else
+		cbuf_append_format(buf, "Unable to find user \"%s\".", nick);
+		
+	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+  hub_free(userinfo);
+
+	return 0;
+}
+
+static int command_userpass(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct cbuffer* buf = cbuf_create(128);
+	struct auth_info data;
+	struct auth_info* userinfo = hub_malloc(sizeof(struct auth_info));
+	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+  char* nick = arg1->data.string;
+	char* password = arg2->data.string;
+		
+	get_user(plugin, nick, userinfo);
+	if (userinfo)
+	{
+	  if (userinfo->credentials >= user->credentials)
+	    cbuf_append_format(buf, "Insufficient rights.");
+	  else
+	  {
+  		data.credentials = userinfo->credentials;
+  	  strncpy(data.nickname, nick, MAX_NICK_LEN);
+  	  strncpy(data.password, password, MAX_PASS_LEN);
+  	  data.nickname[MAX_NICK_LEN] = '\0';
+  	  data.password[MAX_PASS_LEN] = '\0';
+  
+      if (update_user(plugin, &data) == st_allow)
+      	cbuf_append_format(buf, "Password for user \"%s\" changed.", nick);
+      else
+      	cbuf_append_format(buf, "Unable to change password for user \"%s\".", nick);
+    }
+  }
+  
+	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	cbuf_destroy(buf);
+  hub_free(userinfo);
+  
+	return 0;
+}
+
+static void update_user_activity(struct plugin_handle* plugin, struct plugin_user* user)
+{
+	struct sql_data* sql = (struct sql_data*) plugin->ptr;
+	if (user->credentials > auth_cred_guest)
+	{
+	  char* nick = strdup(sql_escape_string(user->nick));
+  	int rc = sql_execute(sql, null_callback, NULL, "UPDATE users SET activity=DATETIME('NOW') WHERE nickname='%s';", nick);
+  
+  	free(nick);
+  
+  	if (rc <= 0)
+  	{
+  		fprintf(stderr, "Unable to update login stats for user \"%s\"\n", user->nick);
+  	}
+  }
 }
 
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
+  struct sql_data* sql;
 	PLUGIN_INITIALIZE(plugin, "SQLite authentication plugin", "1.0", "Authenticate users based on a SQLite database.");
 
 	// Authentication actions.
@@ -264,11 +522,46 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->funcs.auth_register_user = register_user;
 	plugin->funcs.auth_update_user = update_user;
 	plugin->funcs.auth_delete_user = delete_user;
+	plugin->funcs.on_user_login = update_user_activity;
 
-	plugin->ptr = parse_config(config, plugin);
-	if (plugin->ptr)
-		return 0;
-	return -1;
+	sql = parse_config(config, plugin);
+
+	if (!sql)
+		return -1;
+
+	sql->command_register_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_register_handle, plugin, "register", "p", auth_cred_guest, &command_register, "Register your username.");
+	plugin->hub.command_add(plugin, sql->command_register_handle);
+
+	sql->command_password_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_password_handle, plugin, "password", "p", auth_cred_user, &command_password, "Change your own password.");
+	plugin->hub.command_add(plugin, sql->command_password_handle);
+
+	sql->command_useradd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_useradd_handle, plugin, "useradd", "np", auth_cred_operator, &command_useradd, "Register a new user.");
+	plugin->hub.command_add(plugin, sql->command_useradd_handle);
+
+	sql->command_userdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userdel_handle, plugin, "userdel", "n", auth_cred_operator, &command_userdel, "Delete a registered user.");
+	plugin->hub.command_add(plugin, sql->command_userdel_handle);
+	
+	sql->command_userinfo_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userinfo_handle, plugin, "userinfo", "n", auth_cred_operator, &command_userinfo, "Show registered user info.");
+	plugin->hub.command_add(plugin, sql->command_userinfo_handle);
+
+	sql->command_usermod_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_usermod_handle, plugin, "usermod", "nC", auth_cred_admin, &command_usermod, "Modify user credentials.");
+	plugin->hub.command_add(plugin, sql->command_usermod_handle);
+
+	sql->command_userpass_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userpass_handle, plugin, "userpass", "np", auth_cred_operator, &command_userpass, "Change password for a user.");
+	plugin->hub.command_add(plugin, sql->command_userpass_handle);
+	
+	plugin->ptr = sql;
+	
+	create_users_table(plugin);
+	
+	return 0;
 }
 
 int plugin_unregister(struct plugin_handle* plugin)
@@ -276,8 +569,26 @@ int plugin_unregister(struct plugin_handle* plugin)
 	struct sql_data* sql;
 	set_error_message(plugin, 0);
 	sql = (struct sql_data*) plugin->ptr;
-	sqlite3_close(sql->db);
+
+	if (sql)
+	{
+    plugin->hub.command_del(plugin, sql->command_register_handle);
+    plugin->hub.command_del(plugin, sql->command_password_handle);
+    plugin->hub.command_del(plugin, sql->command_useradd_handle);
+    plugin->hub.command_del(plugin, sql->command_userdel_handle);
+    plugin->hub.command_del(plugin, sql->command_usermod_handle);
+    plugin->hub.command_del(plugin, sql->command_userinfo_handle);
+    plugin->hub.command_del(plugin, sql->command_userpass_handle);
+		hub_free(sql->command_register_handle);
+		hub_free(sql->command_password_handle);
+		hub_free(sql->command_useradd_handle);
+		hub_free(sql->command_userdel_handle);
+		hub_free(sql->command_usermod_handle);
+		hub_free(sql->command_userinfo_handle);
+		hub_free(sql->command_userpass_handle);		
+  	sqlite3_close(sql->db);
+  }
+  
 	hub_free(sql);
 	return 0;
 }
-
