@@ -291,31 +291,37 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
 {
 	struct cbuffer* buf = cbuf_create(128);
 	struct sql_data* sql = (struct sql_data*) plugin->ptr;
-	if (sql->register_self == 1)
+  struct auth_info data;
+  struct plugin_command_arg_data* args = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+  char* password = args->data.string;
+  
+  strncpy(data.nickname, user->nick, MAX_NICK_LEN);
+  strncpy(data.password, password, MAX_PASS_LEN);
+  data.nickname[MAX_NICK_LEN] = '\0';
+  data.password[MAX_PASS_LEN] = '\0';
+  data.credentials = auth_cred_user; 	
+
+  if (sql->register_self == 0)
 	{
-    struct auth_info data;
-    struct plugin_command_arg_data* args = (struct plugin_command_arg_data*) list_get_first(cmd->args);
-    char* password = args->data.string;
-    
-    strncpy(data.nickname, user->nick, MAX_NICK_LEN);
-    strncpy(data.password, password, MAX_PASS_LEN);
-    data.nickname[MAX_NICK_LEN] = '\0';
-    data.password[MAX_PASS_LEN] = '\0';
-    data.credentials = auth_cred_user;
-    
-    if (register_user(plugin, &data) == st_allow)
-    {
-    	cbuf_append_format(buf, "User \"%s\" registered.", user->nick);
-    }
+    cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
+    plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
+    plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
+	}
+  else
+  {    
+    if (user->credentials >= auth_cred_user)
+      cbuf_append_format(buf, "*** %s: You are already registered.", cmd->prefix);
     else
     {
-    	cbuf_append_format(buf, "Unable to register user \"%s\".", user->nick);
+      if (register_user(plugin, &data) == st_allow)
+      	cbuf_append_format(buf, "*** %s: User \"%s\" registered.", cmd->prefix, user->nick);
+      else
+      	cbuf_append_format(buf, "*** %s: Unable to register user \"%s\".", cmd->prefix, user->nick);
     }
+    plugin->hub.send_message(plugin, user, cbuf_get(buf));
   }
-  else
-    cbuf_append_format(buf, "Automatic registrations are disabled at this moment."); // FIXME: Should send application to ops
-	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
-	cbuf_destroy(buf);
+
+  cbuf_destroy(buf);
 	return 0;
 }
 
@@ -333,11 +339,11 @@ static int command_password(struct plugin_handle* plugin, struct plugin_user* us
 	data.credentials = user->credentials;
 
 	if (update_user(plugin, &data) == st_allow)
-		cbuf_append(buf, "Password changed.");
+		cbuf_append_format(buf, "*** %s: Password changed.", cmd->prefix);
 	else
-		cbuf_append_format(buf, "Unable to change password for user \"%s\".", user->nick);
+		cbuf_append_format(buf, "*** %s: Unable to change password for user \"%s\".", cmd->prefix, user->nick);
 
-	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
 
 	return 0;
@@ -362,11 +368,11 @@ static int command_useradd(struct plugin_handle* plugin, struct plugin_user* use
 	data.credentials = credentials;
 
 	if (register_user(plugin, &data) == st_allow)
-		cbuf_append_format(buf, "User \"%s\" registered.", nick);
+		cbuf_append_format(buf, "*** %s: User \"%s\" registered.", cmd->prefix, nick);
 	else
-		cbuf_append_format(buf, "Unable to register user \"%s\".", nick);
+		cbuf_append_format(buf, "*** %s: Unable to register user \"%s\".", cmd->prefix, nick);
 
-	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
 
 	return 0;
@@ -384,20 +390,20 @@ static int command_userdel(struct plugin_handle* plugin, struct plugin_user* use
 	if (userinfo)
 	{
 	  if (userinfo->credentials >= user->credentials)
-	    cbuf_append_format(buf, "Insufficient rights.");
+	    cbuf_append_format(buf, "*** %s: Insufficient rights.", cmd->prefix);
 	  else
 	  {
   	  strncpy(data.nickname, nick, MAX_NICK_LEN);
   	  data.nickname[MAX_NICK_LEN] = '\0';
   
 	    if (delete_user(plugin, &data) == st_allow)
-		    cbuf_append_format(buf, "User \"%s\" deleted.", nick);
+		    cbuf_append_format(buf, "*** %s: User \"%s\" deleted.", cmd->prefix, nick);
 	    else
-		    cbuf_append_format(buf, "Unable to delete user \"%s\".", nick);
+		    cbuf_append_format(buf, "*** %s: Unable to delete user \"%s\".", cmd->prefix, nick);
     }
   }
 	
-  plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+  plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
 	hub_free(userinfo);
 	
@@ -424,14 +430,14 @@ static int command_usermod(struct plugin_handle* plugin, struct plugin_user* use
 	  data.credentials = credentials;
 
   	if (update_user(plugin, &data) == st_allow)
-  		cbuf_append_format(buf, "Credentials of user \"%s\" changed from \"%s\" to \"%s\".", nick, auth_cred_to_string(userinfo->credentials), auth_cred_to_string(data.credentials));  		
+  		cbuf_append_format(buf, "*** %s: Credentials of user \"%s\" changed from \"%s\" to \"%s\".", cmd->prefix, nick, auth_cred_to_string(userinfo->credentials), auth_cred_to_string(data.credentials));  		
   	else
-  	  cbuf_append_format(buf, "Unable to change credentials for user \"%s\".", nick);
+  	  cbuf_append_format(buf, "*** %s: Unable to change credentials for user \"%s\".", cmd->prefix, nick);
 	}
 	else
-		cbuf_append_format(buf, "Unable to find user \"%s\".", nick);
+		cbuf_append_format(buf, "*** %s: Unable to find user \"%s\".", cmd->prefix, nick);
 
-  plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+  plugin->hub.send_message(plugin, user, cbuf_get(buf));
   cbuf_destroy(buf);
 	hub_free(userinfo);
 	
@@ -447,11 +453,11 @@ static int command_userinfo(struct plugin_handle* plugin, struct plugin_user* us
 
 	get_user(plugin, nick, userinfo);
 	if (userinfo)
-		cbuf_append_format(buf, "Nick: %s, Credentials: %s", nick, auth_cred_to_string(userinfo->credentials));
+		cbuf_append_format(buf, "*** %s: Nick: %s, Credentials: %s", cmd->prefix, nick, auth_cred_to_string(userinfo->credentials));
 	else
-		cbuf_append_format(buf, "Unable to find user \"%s\".", nick);
+		cbuf_append_format(buf, "*** %s: Unable to find user \"%s\".", cmd->prefix, nick);
 		
-	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
   hub_free(userinfo);
 
@@ -472,7 +478,7 @@ static int command_userpass(struct plugin_handle* plugin, struct plugin_user* us
 	if (userinfo)
 	{
 	  if (userinfo->credentials >= user->credentials)
-	    cbuf_append_format(buf, "Insufficient rights.");
+	    cbuf_append_format(buf, "*** %s: Insufficient rights.", cmd->prefix);
 	  else
 	  {
   		data.credentials = userinfo->credentials;
@@ -482,13 +488,13 @@ static int command_userpass(struct plugin_handle* plugin, struct plugin_user* us
   	  data.password[MAX_PASS_LEN] = '\0';
   
       if (update_user(plugin, &data) == st_allow)
-      	cbuf_append_format(buf, "Password for user \"%s\" changed.", nick);
+      	cbuf_append_format(buf, "*** %s: Password for user \"%s\" changed.", cmd->prefix, nick);
       else
-      	cbuf_append_format(buf, "Unable to change password for user \"%s\".", nick);
+      	cbuf_append_format(buf, "*** %s: Unable to change password for user \"%s\".", cmd->prefix, nick);
     }
   }
   
-	plugin->hub.send_status_message(plugin, user, 000, cbuf_get(buf));
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
   hub_free(userinfo);
   
