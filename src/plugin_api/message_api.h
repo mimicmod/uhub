@@ -21,6 +21,12 @@
 #define HAVE_UHUB_PLUGIN_MESSAGE_API_H
 
 /**
+ * Send an informal message to all users.
+ * Users will see the message as if the hub sent it.
+ */
+extern int plugin_send_chat(struct plugin_handle*, enum auth_credentials cred_low, enum auth_credentials cred_high, const char* message);
+
+/**
  * Send an informal message to a user.
  * The user will see the message as if the hub sent it.
  */

@@ -109,6 +109,7 @@ struct plugin_command_handle;
 struct plugin_command;
 struct plugin_command_arg_data;
 
+typedef int (*hfunc_send_chat)(struct plugin_handle*, enum auth_credentials cred_low, enum auth_credentials cred_high, const char* message);
 typedef int (*hfunc_send_message)(struct plugin_handle*, struct plugin_user* user, const char* message);
 typedef int (*hfunc_send_status)(struct plugin_handle*, struct plugin_user* to, int code, const char* message);
 typedef int (*hfunc_user_disconnect)(struct plugin_handle*, struct plugin_user* user);
@@ -129,7 +130,8 @@ typedef void (*hfunc_set_hub_description)(struct plugin_handle*, const char*);
  */
 struct plugin_hub_funcs
 {
-	hfunc_send_message send_message;
+	hfunc_send_chat send_chat;
+  hfunc_send_message send_message;
 	hfunc_send_status send_status_message;
 	hfunc_user_disconnect user_disconnect;
 	hfunc_command_add command_add;
