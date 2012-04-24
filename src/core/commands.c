@@ -108,6 +108,9 @@ void hub_command_args_free(struct hub_command* cmd)
 			case type_string:
 				hub_free(data->data.string);
 				break;
+			case type_range:
+				hub_free(data->data.range);
+				break;
 			default:
 				break;
 		}
@@ -241,8 +244,10 @@ static enum command_parse_status command_extract_arguments(struct command_base* 
 			case 'r':
 				data = hub_malloc(sizeof(*data));
 				data->type = type_range;
+				data->data.range = hub_malloc_zero(sizeof(struct ip_range));
 				if (!ip_convert_address_to_range(token, data->data.range))
 				{
+					hub_free(data->data.range);
 					hub_free(data);
 					data = NULL;
 					status = cmd_status_arg_address;
@@ -384,32 +389,36 @@ command_parse_cleanup:
 
 void command_get_syntax(struct command_handle* handler, struct cbuffer* buf)
 {
-	size_t n = 0;
+	size_t n, arg_count;
 	int opt = 0;
+	char arg_code, last_arg = -1;
+
+	cbuf_append_format(buf, "!%s", handler->prefix);
 	if (handler->args)
 	{
-		for (n = 0; n < strlen(handler->args); n++)
+		arg_count = strlen(handler->args);
+		for (n = 0; n < arg_count; n++)
 		{
-			if (n > 0)
+			if (!strchr("?+", last_arg))
 				cbuf_append(buf, " ");
-			if (opt)
-				cbuf_append(buf, "[");
-			switch (handler->args[n])
+			arg_code = handler->args[n];
+			switch (arg_code)
 			{
-				case '?': opt = 1; continue;
-				case 'n': cbuf_append(buf, "<nick>"); break;
-				case 'u': cbuf_append(buf, "<user>"); break;
-				case 'i': cbuf_append(buf, "<cid>");  break;
-				case 'a': cbuf_append(buf, "<addr>"); break;
-				case 'r': cbuf_append(buf, "<addr range>"); break;
-				case 'm': cbuf_append(buf, "<message>"); break;
-				case 'p': cbuf_append(buf, "<password>"); break;
+				case '?': cbuf_append(buf, "["); opt++;      break;
+				case '+': /* ignore */                       break;
+				case 'n': cbuf_append(buf, "<nick>");        break;
+				case 'u': cbuf_append(buf, "<user>");        break;
+				case 'i': cbuf_append(buf, "<cid>");         break;
+				case 'a': cbuf_append(buf, "<addr>");        break;
+				case 'r': cbuf_append(buf, "<addr range>");  break;
+				case 'm': cbuf_append(buf, "<message>");     break;
+				case 'p': cbuf_append(buf, "<password>");    break;
 				case 'C': cbuf_append(buf, "<credentials>"); break;
-				case 'c': cbuf_append(buf, "<command>"); break;
-				case 'N': cbuf_append(buf, "<number>"); break;
+				case 'c': cbuf_append(buf, "<command>");     break;
+				case 'N': cbuf_append(buf, "<number>");      break;
+				default: LOG_ERROR("unknown argument code '%c'", arg_code);
 			}
-			if (opt)
-				opt++;
+			last_arg = arg_code;
 		}
 		while (opt--)
 			cbuf_append(buf, "]");
@@ -501,14 +510,11 @@ int command_invoke(struct command_base* cbase, struct hub_user* user, const char
 			ret = send_command_access_denied(cbase, user, cmd->prefix);
 			break;
 
-		case cmd_status_syntax_error:
-			ret = send_command_syntax_error(cbase, user);
-			break;
-
 		case cmd_status_missing_args:
 			ret = send_command_missing_arguments(cbase, user, cmd);
 			break;
 
+		case cmd_status_syntax_error:
 		case cmd_status_arg_nick:
 		case cmd_status_arg_cid:
 		case cmd_status_arg_address:
@@ -545,7 +551,7 @@ struct hub_command_arg_data* hub_command_arg_next(struct hub_command* cmd, enum 
 
 static int command_status(struct command_base* cbase, struct hub_user* user, struct hub_command* cmd, struct cbuffer* msg)
 {
-	struct cbuffer* buf = cbuf_create(cbuf_size(msg) + strlen(cmd->prefix) + 8);
+	struct cbuffer* buf = cbuf_create(cbuf_size(msg) + strlen(cmd->prefix) + 7);
 	cbuf_append_format(buf, "*** %s: %s", cmd->prefix, cbuf_get(msg));
 	send_message(cbase, user, buf);
 	cbuf_destroy(msg);
@@ -579,7 +585,7 @@ static int command_help(struct command_base* cbase, struct hub_user* user, struc
 		command = data->data.command;
 		if (command_is_available(command, user))
 		{
-			cbuf_append_format(buf, "Usage: !%s ", command->prefix);
+			cbuf_append_format(buf, "Usage: ");
 			command_get_syntax(command, buf);
 			cbuf_append_format(buf, "\n%s\n", command->description);
 		}
@@ -720,9 +726,9 @@ static int command_whoip(struct command_base* cbase, struct hub_user* user, stru
 
 static int command_broadcast(struct command_base* cbase, struct hub_user* user, struct hub_command* cmd)
 {
-	size_t offset = 11;
-	size_t message_len = strlen(cmd->message + offset);
-	char* message = adc_msg_escape(cmd->message + offset);
+	struct hub_command_arg_data* arg = hub_command_arg_next(cmd, type_string);
+	char* message = arg->data.string;
+	size_t message_len = strlen(message);
 	char pm_flag[7] = "PM";
 	char from_sid[5];
 	size_t recipients = 0;
@@ -756,7 +762,6 @@ static int command_broadcast(struct command_base* cbase, struct hub_user* user, 
 
 	cbuf_append_format(buf, "*** %s: Delivered to " PRINTF_SIZE_T " user%s", cmd->prefix, recipients, (recipients != 1 ? "s" : ""));
 	send_message(cbase, user, buf);
-	hub_free(message);
 	return 0;
 }
 
@@ -859,7 +864,7 @@ static struct command_handle* add_builtin(struct command_base* cbase, const char
 
 void commands_builtin_add(struct command_base* cbase)
 {
-	ADD_COMMAND("broadcast",  9, "m", auth_cred_operator,  command_broadcast,"Send a message to all users"  );
+	ADD_COMMAND("broadcast",  9, "+m",auth_cred_operator,  command_broadcast,"Send a message to all users"  );
 	ADD_COMMAND("getip",      5, "u", auth_cred_operator,  command_getip,    "Show IP address for a user"   );
 	ADD_COMMAND("help",       4, "?c",auth_cred_guest,     command_help,     "Show this help message."      );
 	ADD_COMMAND("kick",       4, "u", auth_cred_operator,  command_kick,     "Kick a user"                  );
