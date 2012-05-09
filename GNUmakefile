@@ -136,6 +136,7 @@ OLD_REVISION=$(shell grep GIT_REVISION revision.h 2>/dev/null | cut -f 3 -d " " 
 # Sources
 libuhub_SOURCES := \
 		src/core/auth.c \
+		src/core/command_parser.c \
 		src/core/commands.c \
 		src/core/config.c \
 		src/core/eventqueue.c \
@@ -337,7 +338,7 @@ ifeq ($(WINDOWS),YES)
 install:
 	@echo "Cannot install automatically on windows."
 else
-install: $(uhub_BINARY)
+install: all
 	@echo Copying $(uhub_BINARY) to $(UHUB_PREFIX)/bin/
 	@cp $(uhub_BINARY) $(UHUB_PREFIX)/bin/
 	@cp $(uhub-passwd_BINARY) $(UHUB_PREFIX)/bin/

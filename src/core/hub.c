@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2011, Jan Vidar Krey
+ * Copyright (C) 2007-2012, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,6 +76,10 @@ int hub_handle_message(struct hub_info* hub, struct hub_user* u, const char* lin
 			case ADC_CMD_DINF:
 			case ADC_CMD_EINF:
 			case ADC_CMD_FINF:
+			case ADC_CMD_BQUI:
+			case ADC_CMD_DQUI:
+			case ADC_CMD_EQUI:
+			case ADC_CMD_FQUI:
 				/* these must never be allowed for security reasons, so we ignore them. */
 				CHECK_FLOOD(extras, 1);
 				break;
@@ -524,7 +528,7 @@ static void hub_event_dispatcher(void* callback_data, struct event_data* message
 	int status;
 	struct hub_info* hub = (struct hub_info*) callback_data;
 	struct hub_user* user = (struct hub_user*) message->ptr;
-	assert(hub != NULL);
+	uhub_assert(hub != NULL);
 
 	switch (message->id)
 	{

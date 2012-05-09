@@ -84,7 +84,7 @@ void list_append(struct linked_list* list, void* data_ptr)
 void list_remove(struct linked_list* list, void* data_ptr)
 {
 	struct node* node = list->first;
-	assert(data_ptr);
+	uhub_assert(data_ptr);
 
 	list->iterator = NULL;
 
@@ -111,7 +111,6 @@ void list_remove(struct linked_list* list, void* data_ptr)
 		}
 		node = node->next;
 	}
-	uhub_assert(0);
 }
 
 
