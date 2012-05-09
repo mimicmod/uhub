@@ -301,24 +301,27 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
   data.password[MAX_PASS_LEN] = '\0';
   data.credentials = auth_cred_user; 	
 
-  if (sql->register_self == 0)
-	{
-    cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
-    plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
-    plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
-	}
+  if (user->credentials >= auth_cred_user)
+  {
+    cbuf_append_format(buf, "*** %s: You are already registered.", cmd->prefix);
+    plugin->hub.send_message(plugin, user, cbuf_get(buf));
+  }
   else
-  {    
-    if (user->credentials >= auth_cred_user)
-      cbuf_append_format(buf, "*** %s: You are already registered.", cmd->prefix);
+  {
+    if (sql->register_self == 0)
+  	{
+      cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
+      plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
+      plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
+  	}    
     else
     {
       if (register_user(plugin, &data) == st_allow)
       	cbuf_append_format(buf, "*** %s: User \"%s\" registered.", cmd->prefix, user->nick);
       else
       	cbuf_append_format(buf, "*** %s: Unable to register user \"%s\".", cmd->prefix, user->nick);
+      plugin->hub.send_message(plugin, user, cbuf_get(buf));
     }
-    plugin->hub.send_message(plugin, user, cbuf_get(buf));
   }
 
   cbuf_destroy(buf);
