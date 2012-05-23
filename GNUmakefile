@@ -236,6 +236,10 @@ plugin_chat_only_TARGET  := mod_chat_only.so
 plugin_topic_SOURCES := src/plugins/mod_topic.c
 plugin_topic_TARGET  := mod_topic.so
 
+plugin_patterns_SOURCES := src/plugins/mod_patterns.c
+plugin_patterns_TARGET  := mod_patterns.so
+plugin_patterns_LIBS    := -lpcre -lsqlite3
+
 # Source to objects
 libuhub_OBJECTS       := $(libuhub_SOURCES:.c=.o)
 libutils_OBJECTS      := $(libutils_SOURCES:.c=.o)
@@ -255,7 +259,8 @@ all_plugins := \
 		$(plugin_welcome_TARGET) \
 		$(plugin_chat_history_TARGET) \
 		$(plugin_chat_only_TARGET) \
-		$(plugin_topic_TARGET)
+		$(plugin_topic_TARGET) \
+		$(plugin_patterns_TARGET)
 
 all_OBJECTS := \
 		$(libuhub_OBJECTS) \
@@ -313,6 +318,9 @@ $(plugin_welcome_TARGET): $(plugin_welcome_SOURCES) $(libutils_OBJECTS)
 
 $(plugin_topic_TARGET): $(plugin_topic_SOURCES) $(libutils_OBJECTS)
 	$(MSG_CC) $(CC) -shared -fPIC -o $@ $^ $(CFLAGS)
+
+$(plugin_patterns_TARGET): $(plugin_patterns_SOURCES) $(libutils_OBJECTS) 
+	$(MSG_CC) $(CC) -shared -fPIC -o $@ $^ $(CFLAGS) $(LDFLAGS) $(plugin_patterns_LIBS)
 
 
 $(adcrush_BINARY): $(adcrush_OBJECTS) $(libuhub_OBJECTS) $(libutils_OBJECTS) $(libadc_common_OBJECTS) $(libadc_client_OBJECTS)
