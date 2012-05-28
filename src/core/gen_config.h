@@ -11,7 +11,6 @@ struct hub_config
 	int   show_banner_sys_info;            /*<<< Show banner on connect (default: 1) */
 	int   max_users;                       /*<<< Maximum number of users allowed on the hub (default: 500) */
 	int   registered_users_only;           /*<<< Allow registered users only (default: 0) */
-	int   register_self;                   /*<<< Allow users to register themselves on the hub. (default: 0) */
 	int   obsolete_clients;                /*<<< Support obsolete clients using a ADC protocol prior to 1.0 (default: 0) */
 	int   chat_is_privileged;              /*<<< Allow chat for operators and above only (default: 0) */
 	char* hub_name;                        /*<<< Name of hub (default: "uhub") */
