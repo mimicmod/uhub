@@ -20,6 +20,7 @@
 #include "uhub.h"
 
 #define CBUF_FLAG_CONST_BUFFER 0x01
+#define MAX_HELP_MSG 16384
 
 struct cbuffer
 {
@@ -85,12 +86,12 @@ void cbuf_append(struct cbuffer* buf, const char* msg)
 
 void cbuf_append_format(struct cbuffer* buf, const char* format, ...)
 {
-	static char tmp[1024];
+	static char tmp[MAX_HELP_MSG];
 	va_list args;
 	int bytes;
 	uhub_assert(buf->flags == 0);
 	va_start(args, format);
-	bytes = vsnprintf(tmp, 1024, format, args);
+	bytes = vsnprintf(tmp, MAX_HELP_MSG, format, args);
 	va_end(args);
 	cbuf_append_bytes(buf, tmp, bytes);
 }

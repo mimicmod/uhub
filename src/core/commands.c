@@ -23,7 +23,6 @@
 // #define DEBUG_UNLOAD_PLUGINS
 #endif
 
-#define MAX_HELP_MSG 16384
 #define MAX_HELP_LINE 512
 
 static int send_command_access_denied(struct command_base* cbase, struct hub_user* user, const char* prefix);
