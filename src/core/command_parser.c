@@ -55,6 +55,54 @@ void command_free(struct hub_command* cmd)
 	hub_free(cmd);
 }
 
+static time_t command_string_to_time(const char* time)
+{
+	char base;
+	time_t time_base = 0;
+	time_t timestamp;
+	char coef_string[5];
+	int coef;
+
+	base = time[strlen(time)-1];
+	strncpy(coef_string, time, strlen(time)-1);
+	coef = uhub_atoi(coef_string);
+	
+	switch (base)
+		{
+			case 's':
+				time_base = 1;
+			break;
+
+			case 'm':
+				time_base = 60;
+			break;			
+			
+			case 'h':
+				time_base = 60*60;
+			break;
+
+			case 'd':
+				time_base = 86400;
+			break;
+
+			case 'w':
+				time_base = 604800;
+			break;
+
+			case 'M':
+				time_base = 2419200;
+			break;
+
+			case 'y':
+				time_base = 31536000;
+			break;
+		}
+  fprintf(stderr, "coef_string=%s, coef=%d, time_base=%d\n", coef_string, coef, (int)time_base);	
+	timestamp = time_base * coef;
+	
+	return timestamp;
+}
+
 static enum command_parse_status command_extract_arguments(struct hub_info* hub, const struct hub_user* user, struct command_handle* command, struct linked_list* tokens, struct linked_list* args)
 {
 	int arg = 0;
@@ -204,6 +252,12 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 				}
 				break;
 
+      case 't':
+				data = hub_malloc(sizeof(*data));
+				data->type = type_time;
+				data->data.time = command_string_to_time(token);
+				break;
+				
 			case '\0':
 				if (!opt)
 				{

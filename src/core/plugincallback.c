@@ -59,7 +59,6 @@ static struct hub_user* convert_user_type(struct plugin_user* user)
 
 static int cbfunc_send_chat(struct plugin_handle* plugin, enum auth_credentials cred_low, enum auth_credentials cred_high, const char* message)
 {
-//	struct plugin_callback_data* data = get_callback_data(plugin);
 	struct hub_info* hub = plugin_get_hub(plugin);
 	struct hub_user* target;
   char* buffer = adc_msg_escape(message);

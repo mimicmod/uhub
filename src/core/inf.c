@@ -36,7 +36,6 @@ static void remove_server_restricted_flags(struct adc_message* cmd)
 	adc_msg_remove_named_argument(cmd, "HU"); /* Obsolete: hub flag (CT) */
 	adc_msg_remove_named_argument(cmd, "HI"); /* Obsolete: hidden user flag */
 	adc_msg_remove_named_argument(cmd, "TO"); /* Client to client token - should not be seen here */
-	adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_REFERER);
 }
 
 static int set_feature_cast_supports(struct hub_user* u, struct adc_message* cmd)
@@ -192,7 +191,8 @@ static int check_network(struct hub_info* hub, struct hub_user* user, struct adc
 	const char* address = user_get_address(user);
 	
 	/* Check for NAT override address */
-	if (acl_is_ip_nat_override(hub->acl, address))
+	//if (acl_is_ip_nat_override(hub->acl, address))
+	if (plugin_check_ip_late(hub, &user->id.addr) == st_allow)
 	{
 		char* client_given_ip = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_IPV4_ADDR);
 		if (client_given_ip && strcmp(client_given_ip, "0.0.0.0") != 0)
@@ -384,7 +384,7 @@ static int check_user_agent(struct hub_info* hub, struct hub_user* user, struct 
 	return 0;
 }
 
-
+/*
 static int check_acl(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
 {
 	if (acl_is_cid_banned(hub->acl, user->id.cid))
@@ -403,6 +403,35 @@ static int check_acl(struct hub_info* hub, struct hub_user* user, struct adc_mes
 	}
 	
 	return 0;
+}
+*/
+
+int acl_flag_get(struct acl_info* info, enum acl_flags flag)
+{
+    return info->flags & flag;
+}
+
+static int check_acl(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
+{
+  int ret = 0;
+	struct acl_info* info = 0;
+	info = (struct acl_info*) hub_malloc(sizeof(struct acl_info));
+	if (plugin_check_user_late(hub, user, info) == st_deny)
+	{
+	  if (info->expiry >= 0)
+      ret = status_msg_ban_temporarily;
+    else
+    {
+      if (acl_flag_get(info, deny_nickname))
+        ret = status_msg_inf_error_nick_restricted;
+      else
+        ret = status_msg_ban_permanently;
+    }
+	}
+	
+	hub_free(info);
+	
+	return ret;
 }
 
 static int check_limits(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)

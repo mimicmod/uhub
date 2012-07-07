@@ -64,6 +64,7 @@ enum hub_command_arg_type
 		type_user,
 		type_address,
 		type_range,
+		type_time,
 		type_credentials,
 		type_command
 };
@@ -78,6 +79,7 @@ struct hub_command_arg_data
 		struct ip_addr_encap* address;
 		struct ip_range* range;
 		enum auth_credentials credentials;
+		time_t time;
 		struct command_handle* command;
 	} data;
 };

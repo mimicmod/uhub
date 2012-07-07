@@ -138,6 +138,7 @@ void command_get_syntax(struct command_handle* handler, struct cbuffer* buf)
 				case 'C': cbuf_append(buf, "<credentials>"); break;
 				case 'c': cbuf_append(buf, "<command>");     break;
 				case 'N': cbuf_append(buf, "<number>");      break;
+				case 't': cbuf_append(buf, "<time>");        break;
 				default: LOG_ERROR("unknown argument code '%c'", arg_code);
 			}
 			last_arg = arg_code;

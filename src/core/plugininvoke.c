@@ -85,10 +85,15 @@ plugin_st plugin_check_ip_early(struct hub_info* hub, struct ip_addr_encap* addr
 	PLUGIN_INVOKE_STATUS_1(hub, on_check_ip_early, addr);
 }
 
-plugin_st plugin_check_ip_late(struct hub_info* hub, struct hub_user* who, struct ip_addr_encap* addr)
+plugin_st plugin_check_ip_late(struct hub_info* hub, struct ip_addr_encap* addr)
+{
+	PLUGIN_INVOKE_STATUS_1(hub, on_check_ip_late, addr);
+}
+
+plugin_st plugin_check_user_late(struct hub_info* hub, struct hub_user* who, struct acl_info* info)
 {
 	struct plugin_user* user = convert_user_type(who);
-	PLUGIN_INVOKE_STATUS_2(hub, on_check_ip_late, user, addr);
+	PLUGIN_INVOKE_STATUS_2(hub, on_check_user_late, user, info);
 }
 
 void plugin_log_connection_accepted(struct hub_info* hub, struct ip_addr_encap* ipaddr)

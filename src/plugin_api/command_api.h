@@ -44,6 +44,7 @@ struct plugin_command_arg_data
 		struct plugin_user* user;
 		struct ip_addr_encap* address;
 		struct ip_range* range;
+		time_t time;
 		enum auth_credentials credentials;
 	} data;
 };

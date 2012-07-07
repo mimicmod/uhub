@@ -76,21 +76,30 @@ struct auth_info
 	enum auth_credentials credentials;
 };
 
-enum ban_flags
+enum acl_flags
 {
-	ban_nickname = 0x01, /* Nickname is banned */
-	ban_cid      = 0x02, /* CID is banned */
-	ban_ip       = 0x04, /* IP address (range) is banned */
+  deny_nickname  = 0x001, /* Nickname is denied */
+	ban_nickname   = 0x002, /* Nickname is banned */
+	ban_cid        = 0x004, /* CID is banned */
+	ban_ip         = 0x008, /* IP address (range) is banned */		
+	protect_ip     = 0x010, /* IP address (range) is protected */
+  deny_ip        = 0x020, /* IP address (range) is denied */
+  nat_ip         = 0x040, /* IP address (range) is nat override */
+	mute_user      = 0x080, /* User is muted */
+	nopm_user      = 0x100, /* User cannot send pm messages */
 };
 
-struct ban_info
+struct acl_info
 {
+  unsigned int id;
 	unsigned int flags;                 /* See enum ban_flags. */
 	char nickname[MAX_NICK_LEN+1];      /* Nickname - only defined if (ban_nickname & flags). */
 	char cid[MAX_CID_LEN+1];            /* CID - only defined if (ban_cid & flags). */
 	struct ip_addr_encap ip_addr_lo;    /* Low IP address of an IP range */
 	struct ip_addr_encap ip_addr_hi;    /* High IP address of an IP range */
 	time_t expiry;                      /* Time when the ban record expires */
+  char who[MAX_NICK_LEN+1];         
+  char reason[512];                        
 };
 
 enum plugin_command_arg_type
@@ -100,6 +109,7 @@ enum plugin_command_arg_type
 	plugin_cmd_arg_type_user,
 	plugin_cmd_arg_type_address,
 	plugin_cmd_arg_type_range,
+	plugin_cmd_arg_type_time,
 	plugin_cmd_arg_type_credentials,
 };
 

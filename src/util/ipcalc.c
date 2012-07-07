@@ -484,6 +484,25 @@ int ip_convert_address_to_range(const char* address, struct ip_range* range)
 	return 0;
 }
 
+const char* ip_convert_range_to_string(struct ip_range* iprange)
+{
+  static char range[2 * (INET6_ADDRSTRLEN+1)] = {0, };
+  const char* addr = ip_convert_to_string(&iprange->lo);
+  size_t offset = 0;
+  size_t len = strlen(addr);
+
+  memcpy(range + offset, addr, len);
+  offset += len;
+  range[offset++] = '-';
+
+  addr = ip_convert_to_string(&iprange->hi);
+  len = strlen(addr),
+  memcpy(range + offset, addr, len);
+  offset += len;
+  range[offset++] = '\0';
+  return range;
+}
+
 int ip_in_range(struct ip_addr_encap* addr, struct ip_range* range)
 {
 	return (addr->af == range->lo.af && ip_compare(&range->lo, addr) <= 0 && ip_compare(addr, &range->hi) <= 0);

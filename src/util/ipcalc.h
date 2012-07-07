@@ -96,7 +96,7 @@ extern int ip_is_valid_ipv6(const char* address);
  * @param port      Fill the struct sockaddr* with the given port, can safely be ignored.
  */
 extern int ip_convert_address(const char* text_address, int port, struct sockaddr* addr, socklen_t* addr_len);
-
+extern const char* ip_convert_range_to_string(struct ip_range* range);
 extern int ip_mask_create_left(int af, int bits, struct ip_addr_encap* result);
 extern int ip_mask_create_right(int af, int bits, struct ip_addr_encap* result);
 
