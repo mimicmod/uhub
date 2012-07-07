@@ -44,6 +44,7 @@ void config_defaults(struct hub_config* config)
 	config->tls_require_redirect_addr = hub_strdup("");
 	config->tls_certificate = hub_strdup("");
 	config->tls_private_key = hub_strdup("");
+	config->nmdc_only_redirect_addr = hub_strdup("");
 	config->file_acl = hub_strdup("");
 	config->file_plugins = hub_strdup("");
 	config->msg_hub_full = hub_strdup("Hub is full");
@@ -535,6 +536,16 @@ static int apply_config(struct hub_config* config, char* key, char* data, int li
 		return 0;
 	}
 
+	if (!strcmp(key, "nmdc_only_redirect_addr"))
+	{
+		if (!apply_string(key, data, &config->nmdc_only_redirect_addr, (char*) ""))
+		{
+			LOG_ERROR("Configuration parse error on line %d", line_count);
+			return -1;
+		}
+		return 0;
+	}
+
 	if (!strcmp(key, "file_acl"))
 	{
 		if (!apply_string(key, data, &config->file_acl, (char*) ""))
@@ -938,6 +949,8 @@ void free_config(struct hub_config* config)
 
 	hub_free(config->tls_private_key);
 
+	hub_free(config->nmdc_only_redirect_addr);
+
 	hub_free(config->file_acl);
 
 	hub_free(config->file_plugins);
@@ -1143,6 +1156,9 @@ void dump_config(struct hub_config* config, int ignore_defaults)
 
 	if (!ignore_defaults || strcmp(config->tls_private_key, "") != 0)
 		fprintf(stdout, "tls_private_key = \"%s\"\n", config->tls_private_key);
+
+	if (!ignore_defaults || strcmp(config->nmdc_only_redirect_addr, "") != 0)
+		fprintf(stdout, "nmdc_only_redirect_addr = \"%s\"\n", config->nmdc_only_redirect_addr);
 
 	if (!ignore_defaults || strcmp(config->file_acl, "") != 0)
 		fprintf(stdout, "file_acl = \"%s\"\n", config->file_acl);

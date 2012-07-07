@@ -97,7 +97,7 @@ static time_t command_string_to_time(const char* time)
 				time_base = 31536000;
 			break;
 		}
-  fprintf(stderr, "coef_string=%s, coef=%d, time_base=%d\n", coef_string, coef, (int)time_base);	
+
 	timestamp = time_base * coef;
 	
 	return timestamp;

@@ -29,7 +29,7 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 	if (events == NET_EVENT_TIMEOUT)
 	{
 		char buf[512];
-		ssize_t len = snprintf(buf, sizeof(buf), "This hub runs on ADC protocol only!\n\nThese are the possible reasons why you see this message:\n\n * you used address without protocol specification, e.g. example.com:1234 instead of adc://example.com:1234\n * your client does not support ADC protocol.\n|$ForceMove dchub://spartan.mimic.cz|");
+		ssize_t len = snprintf(buf, sizeof(buf), "This hub runs on ADC protocol only!\n\nThese are the possible reasons why you see this message:\n\n * you used address without protocol specification, e.g. example.com:1234 instead of adc://example.com:1234\n * your client does not support ADC protocol.\n|$ForceMove %s|", probe->hub->config->nmdc_only_redirect_addr);
 		net_con_send(con, buf, (size_t) len);
 		probe_destroy(probe);
 		return;
@@ -79,8 +79,7 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 				probe_recvbuf[0] == 22 && 
 				probe_recvbuf[1] == 3 && /* protocol major version */
 				probe_recvbuf[5] == 1 && /* message type */
-				probe_recvbuf[9] == probe_recvbuf[1] &&
-				probe_recvbuf[10] == probe_recvbuf[2])
+				probe_recvbuf[9] == probe_recvbuf[1])
 			{
 				if (probe->hub->config->tls_enable)
 				{
@@ -93,7 +92,7 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 				}
 				else
 				{
-					LOG_TRACE("Probed TLS %d.%d connection. TLS disabled in hub.", (int) probe_recvbuf[1], (int) probe_recvbuf[2]);
+					LOG_TRACE("Probed TLS %d.%d connection. TLS disabled in hub.", (int) probe_recvbuf[9], (int) probe_recvbuf[10]);
 				}
 			}
 			else

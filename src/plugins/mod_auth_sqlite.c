@@ -372,7 +372,7 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
   	{
       cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
       plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
-      plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our whos.");
+      plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
   	}    
     else
     {

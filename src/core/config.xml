@@ -436,6 +436,16 @@
 		<since>0.3.0</since>
 	</option>
 
+	<option name="nmdc_only_redirect_addr" type="string" default="">
+		<check regexp="dchub://.*" />
+		<short>A redirect address in case a client connects not using "adc://" or "adcs://" or does not support ADC protocol.</short>
+		<description><![CDATA[
+		This is the redirect address used when the hub wants to redirect a client for not using ADC.
+		For instance a hub at adc://adc.example.com redirects to dchub://example.com when no ADC handshake is sent from a client.
+		]]></description>
+		<since>0.4.0</since>
+	</option>
+
 	<option name="file_acl" type="file" default="">
 		<short>File containing access control lists</short>
 		<description><![CDATA[
