@@ -57,15 +57,20 @@ void command_free(struct hub_command* cmd)
 
 static time_t command_string_to_time(const char* time)
 {
-	char base;
-	time_t time_base = 0;
-	time_t timestamp;
-	char coef_string[5];
-	int coef;
+	int len = strlen(time);
+	char base = time[strlen(time)-1];
+	size_t time_base = 0;
+	size_t timestamp = 0;
+	int offset = 0;
+	int val = 0;
+	int i = 0;
 
-	base = time[strlen(time)-1];
-	strncpy(coef_string, time, strlen(time)-1);
-	coef = uhub_atoi(coef_string);
+	for (; i < len-1; i++)
+		if (time[i] > '9' || time[i] < '0') 
+			offset++;
+			
+	for (i = offset; i< len-1; i++) 
+		val = val*10 + (time[i] - '0');
 	
 	switch (base)
 		{
@@ -75,7 +80,7 @@ static time_t command_string_to_time(const char* time)
 
 			case 'm':
 				time_base = 60;
-			break;			
+			break;
 			
 			case 'h':
 				time_base = 60*60;
@@ -97,9 +102,8 @@ static time_t command_string_to_time(const char* time)
 				time_base = 31536000;
 			break;
 		}
-  
-	timestamp = time_base * coef;
-	fprintf(stderr, "coef_string=%s, coef=%d, time_base=%d, timestamp=%d\n", coef_string, coef, (int)time_base, (int)timestamp);
+	
+	timestamp = time_base * val;
 	
 	return timestamp;
 }
