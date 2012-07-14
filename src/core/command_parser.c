@@ -351,4 +351,6 @@ struct hub_command* command_parse(struct command_base* cbase, struct hub_info* h
 
 command_parse_cleanup:
 	list_clear(tokens, &hub_free);
-	list_destr
+	list_destroy(tokens);
+	return cmd;
+}
