@@ -97,8 +97,9 @@ static time_t command_string_to_time(const char* time)
 				time_base = 31536000;
 			break;
 		}
-
+  
 	timestamp = time_base * coef;
+	fprintf(stderr, "coef_string=%s, coef=%d, time_base=%d, timestamp=%d\n", coef_string, coef, (int)time_base, (int)timestamp);
 	
 	return timestamp;
 }
@@ -346,7 +347,4 @@ struct hub_command* command_parse(struct command_base* cbase, struct hub_info* h
 
 command_parse_cleanup:
 	list_clear(tokens, &hub_free);
-	list_destroy(tokens);
-	return cmd;
-}
-
+	list_destr
