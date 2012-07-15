@@ -570,6 +570,24 @@ int acl_flag_get(struct acl_info* info, enum acl_flags flag)
     return info->flags & flag;
 }
 
+const char* acl_flag_to_string(enum acl_flags flag)
+{
+	switch (flag)
+	{
+		case deny_nickname:         return "DENY NICK";
+		case ban_nickname:          return "BAN NICK";
+		case ban_cid:               return "BAN CID";
+		case ban_ip:                return "BAN IP/RANGE";
+		case protect_ip:            return "PROTECT IP/RANGE";
+		case deny_ip:               return "DENY IP/RANGE";
+		case nat_ip:                return "NAT IP/RANGE";
+		case mute_user:             return "MUTE";
+		case nopm_user:             return "NOPM";
+	}
+	
+	return "";
+}
+
 const char* convert_aclinfo_to_string(struct acl_info* info)
 {
   static char aclinfo[1024] = {0, };
@@ -578,8 +596,10 @@ const char* convert_aclinfo_to_string(struct acl_info* info)
   time_t rawtime = info->expiry;
   struct tm* timeinfo;
   char expiry[80];
-  char tmp[640];
-
+  char tmp[1024];
+  enum acl_flags flag;
+  struct linked_list* flags_cast = list_create();
+  
   if (rawtime > 0)
   {
     timeinfo = localtime(&rawtime);
@@ -594,21 +614,21 @@ const char* convert_aclinfo_to_string(struct acl_info* info)
   memcpy(aclinfo + offset, tmp, len);
   offset += len;
   
-  if (acl_flag_get(info, ban_nickname))
+  if (acl_flag_get(info, ban_nickname) || acl_flag_get(info, deny_nickname) || acl_flag_get(info, mute_user) || acl_flag_get(info, nopm_user))
   {
     len = sprintf(tmp, "\nNickname: %s", info->nickname);
     memcpy(aclinfo + offset, tmp, len);
     offset += len;
   }
 
-  if (acl_flag_get(info, ban_cid))
+  if (acl_flag_get(info, ban_cid) || acl_flag_get(info, mute_user) || acl_flag_get(info, nopm_user))
   {
     len = sprintf(tmp, "\nCID: %s", info->cid);
     memcpy(aclinfo + offset, tmp, len);
     offset += len;
   }
   
-  if (acl_flag_get(info, ban_ip) || acl_flag_get(info, deny_ip))
+  if (acl_flag_get(info, ban_ip) || acl_flag_get(info, deny_ip) || acl_flag_get(info, nat_ip) || acl_flag_get(info, protect_ip))
   {
     if (ip_compare(&info->ip_addr_lo, &info->ip_addr_hi) != 0)
     {
@@ -638,10 +658,41 @@ const char* convert_aclinfo_to_string(struct acl_info* info)
     offset += len;
   }
   
-  len = sprintf(tmp, "\nCreated by: %s\n", info->who);
+  len = sprintf(tmp, "\nCreated by: %s", info->who);
   memcpy(aclinfo + offset, tmp, len);
   offset += len;
     
+  flag = deny_nickname;
+  
+  while (flag <= nopm_user)
+  {
+    if(acl_flag_get(info, flag))
+    {
+      char* flag_str = (char*) acl_flag_to_string(flag);
+      list_append(flags_cast, flag_str);
+    }
+    flag <<= 1;
+  }
+  
+  char* str;  
+  str = (char*) list_get_first(flags_cast);
+
+  len = sprintf(tmp, "\nFlags: %s", str);
+  memcpy(aclinfo + offset, tmp, len);
+  offset += len;
+        
+  while (str)
+  {
+    str = (char*) list_get_next(flags_cast);
+    if (str != NULL)
+    {
+      len = sprintf(tmp, " + %s", str);
+      memcpy(aclinfo + offset, tmp, len);
+      offset += len;
+    }  
+  }
+  
+  aclinfo[offset++] = '\n';      
   aclinfo[offset++] = '\0';
 
   return aclinfo;
