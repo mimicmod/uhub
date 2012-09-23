@@ -68,7 +68,7 @@ static time_t command_string_to_time(const char* time)
 	for (; i < len-1; i++)
 		if (time[i] > '9' || time[i] < '0') 
 			offset++;
-			
+
 	for (i = offset; i< len-1; i++) 
 		val = val*10 + (time[i] - '0');
 	
@@ -217,6 +217,8 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 
 			case 'n':
 			case 'm':
+			case 'A':
+			case 'T':
 			case 'p':
 				data = hub_malloc(sizeof(*data));
 				data->type = type_string;
@@ -354,3 +356,4 @@ command_parse_cleanup:
 	list_destroy(tokens);
 	return cmd;
 }
+

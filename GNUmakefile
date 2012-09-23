@@ -214,6 +214,10 @@ autotest_OBJECTS = autotest.o
 plugin_example_SOURCES := src/plugins/mod_example.c
 plugin_example_TARGET  := mod_example.so
 
+plugin_extras_SOURCES := src/plugins/mod_extras.c
+plugin_extras_TARGET  := mod_extras.so
+plugin_extras_LIBS    := -lsqlite3
+
 plugin_welcome_SOURCES := src/plugins/mod_welcome.c
 plugin_welcome_TARGET  := mod_welcome.so
 
@@ -253,6 +257,7 @@ admin_OBJECTS         := $(admin_SOURCES:.c=.o)
 
 all_plugins := \
 		$(plugin_example_TARGET) \
+		$(plugin_extras_TARGET) \
 		$(plugin_logging_TARGET) \
 		$(plugin_auth_TARGET) \
 		$(plugin_auth_sqlite_TARGET) \
@@ -304,6 +309,9 @@ $(plugin_auth_sqlite_TARGET): $(plugin_auth_sqlite_SOURCES) $(libutils_OBJECTS)
 $(plugin_example_TARGET): $(plugin_example_SOURCES) $(libutils_OBJECTS)
 	$(MSG_CC) $(CC) -shared -fPIC -o $@ $^ $(CFLAGS)
 
+$(plugin_extras_TARGET): $(plugin_extras_SOURCES) $(libutils_OBJECTS)
+	$(MSG_CC) $(CC) -shared -fPIC -o $@ $^ $(CFLAGS) $(LDFLAGS) $(plugin_auth_sqlite_LIBS)
+	
 $(plugin_logging_TARGET): $(plugin_logging_SOURCES) $(libutils_OBJECTS) $(libadc_common_OBJECTS) src/network/network.o
 	$(MSG_CC) $(CC) -shared -fPIC -o $@ $^ $(CFLAGS)
 

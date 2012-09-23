@@ -132,6 +132,7 @@ void command_get_syntax(struct command_handle* handler, struct cbuffer* buf)
 				case 'u': cbuf_append(buf, "<user>");        break;
 				case 'i': cbuf_append(buf, "<cid>");         break;
 				case 'a': cbuf_append(buf, "<addr>");        break;
+				case 'A': cbuf_append(buf, "<addr string>"); break;
 				case 'r': cbuf_append(buf, "<addr range>");  break;
 				case 'm': cbuf_append(buf, "<message>");     break;
 				case 'p': cbuf_append(buf, "<password>");    break;
@@ -139,6 +140,7 @@ void command_get_syntax(struct command_handle* handler, struct cbuffer* buf)
 				case 'c': cbuf_append(buf, "<command>");     break;
 				case 'N': cbuf_append(buf, "<number>");      break;
 				case 't': cbuf_append(buf, "<time>");        break;
+				case 'T': cbuf_append(buf, "<tth>");        break;
 				default: LOG_ERROR("unknown argument code '%c'", arg_code);
 			}
 			last_arg = arg_code;
