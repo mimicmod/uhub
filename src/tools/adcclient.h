@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2011, Jan Vidar Krey
+ * Copyright (C) 2007-2012, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,17 +23,6 @@
 #include "uhub.h"
 
 #define ADC_BUFSIZE 16384
-
-enum ADC_client_state
-{
-	ps_none, /* Not connected */
-	ps_conn, /* Connecting... */
-	ps_conn_ssl, /* SSL handshake */
-	ps_protocol, /* Have sent HSUP */
-	ps_identify, /* Have sent BINF */
-	ps_verify, /* Have sent HPAS */
-	ps_normal, /* Are fully logged in */
-};
 
 struct ADC_client;
 
@@ -71,6 +60,13 @@ struct ADC_hub_info
 	char* version;
 };
 
+enum ADC_chat_message_flags
+{
+	chat_flags_none = 0,
+	chat_flags_action = 1,
+	chat_flags_private = 2
+};
+
 struct ADC_chat_message
 {
 	sid_t from_sid;
@@ -79,14 +75,23 @@ struct ADC_chat_message
 	int flags;
 };
 
+#define MAX_DESC_LEN 128
 struct ADC_user
 {
 	sid_t sid;
-	char* cid;
-	char* name;
-	char* description;
-	char* address;
-	char* version;
+	char cid[MAX_CID_LEN+1];
+	char name[MAX_NICK_LEN+1];
+	char description[MAX_DESC_LEN+1];
+	char address[INET6_ADDRSTRLEN+1];
+	char version[MAX_UA_LEN+1];
+};
+
+struct ADC_client_quit_reason
+{
+	sid_t sid;
+	sid_t initator; // 0 = default/hub.
+	char message[128]; // optional
+	int flags;
 };
 
 
@@ -96,41 +101,23 @@ struct ADC_client_callback_data
 		struct ADC_hub_info* hubinfo;
 		struct ADC_chat_message* chat;
 		struct ADC_user* user;
+		struct ADC_client_quit_reason* quit;
 	};
 };
 
+sid_t ADC_client_get_sid(const struct ADC_client* client);
+const char* ADC_client_get_nick(const struct ADC_client* client);
+const char* ADC_client_get_description(const struct ADC_client* client);
+void* ADC_client_get_ptr(const struct ADC_client* client);
+
 typedef int (*adc_client_cb)(struct ADC_client*, enum ADC_client_callback_type, struct ADC_client_callback_data* data);
 
-struct ADC_client
-{
-	sid_t sid;
-	enum ADC_client_state state;
-	struct adc_message* info;
-	char recvbuf[ADC_BUFSIZE];
-	char sendbuf[ADC_BUFSIZE];
-	adc_client_cb callback;
-	size_t s_offset;
-	size_t r_offset;
-	size_t timeout;
-	struct net_connection* con;
-	struct net_timer* timer;
-	struct sockaddr_in addr;
-	char* hub_address;
-	char* nick;
-	char* desc;
-	int ssl_enabled;
-#ifdef SSL_SUPPORT
-	const SSL_METHOD* ssl_method;
-	SSL_CTX* ssl_ctx;
-#endif /*  SSL_SUPPORT */
-};
-
-int ADC_client_create(struct ADC_client* client, const char* nickname, const char* description);
+struct ADC_client* ADC_client_create(const char* nickname, const char* description, void* ptr);
 void ADC_client_set_callback(struct ADC_client* client, adc_client_cb);
 void ADC_client_destroy(struct ADC_client* client);
 int ADC_client_connect(struct ADC_client* client, const char* address);
 void ADC_client_disconnect(struct ADC_client* client);
-void ADC_client_send(struct ADC_client* client, char* msg);
+void ADC_client_send(struct ADC_client* client, struct adc_message* msg);
 
 #endif /* HAVE_UHUB_ADC_CLIENT_H */
 

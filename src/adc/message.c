@@ -532,6 +532,30 @@ struct adc_message* adc_msg_create(const char* line)
 	return adc_msg_parse(line, strlen(line));
 }
 
+struct adc_message* adc_msg_construct_source(fourcc_t fourcc, sid_t source, size_t size)
+{
+	struct adc_message* msg = adc_msg_construct(fourcc, size + 4 + 1);
+	if (!msg)
+		return NULL;
+
+	adc_msg_add_argument(msg, sid_to_string(source));
+	msg->source = source;
+	return msg;
+}
+
+struct adc_message* adc_msg_construct_source_dest(fourcc_t fourcc, sid_t source, sid_t dest, size_t size)
+{
+	struct adc_message* msg = adc_msg_construct(fourcc, size + 4 + 4 + 1);
+	if (!msg)
+		return NULL;
+
+	adc_msg_add_argument(msg, sid_to_string(source));
+	adc_msg_add_argument(msg, sid_to_string(dest));
+	msg->source = source;
+	msg->target = dest;
+	return msg;
+}
+
 
 struct adc_message* adc_msg_construct(fourcc_t fourcc, size_t size)
 {
@@ -539,9 +563,7 @@ struct adc_message* adc_msg_construct(fourcc_t fourcc, size_t size)
 	if (!msg)
 		return NULL; /* OOM */
 
-	if (size < sizeof(fourcc)) size = sizeof(fourcc);
-
-	if (!adc_msg_grow(msg, size+1))
+	if (!adc_msg_grow(msg, sizeof(fourcc) + size + 1))
 	{
 		msg_free(msg);
 		return NULL; /* OOM */
@@ -909,6 +931,42 @@ char* adc_msg_unescape(const char* string)
 	}
 	*ptr = 0;
 	return new_string;
+}
+
+int adc_msg_unescape_to_target(const char* string, char* target, size_t target_size)
+{
+	size_t w = 0;
+	char* ptr = (char*) target;
+	char* str = (char*) string;
+	int escaped = 0;
+
+	while (*str && w < (target_size-1))
+	{
+		if (escaped) {
+			if (*str == 's')
+				*ptr++ = ' ';
+			else if (*str == '\\')
+				*ptr++ = '\\';
+			else if (*str == 'n')
+				*ptr++ = '\n';
+			else
+				*ptr++ = *str;
+			w++;
+			escaped = 0;
+		} else {
+			if (*str == '\\')
+				escaped = 1;
+			else
+			{
+				*ptr++ = *str;
+				w++;
+			}
+		}
+		str++;
+	}
+	*ptr = 0;
+	w++;
+	return w;
 }
 
 char* adc_msg_escape(const char* string)

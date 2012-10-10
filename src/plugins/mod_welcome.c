@@ -22,13 +22,12 @@
 #include "adc/sid.h"
 #include "util/cbuffer.h"
 #include "util/memory.h"
-#include "util/ipcalc.h"
+#include "network/ipcalc.h"
 #include "plugin_api/handle.h"
 #include "plugin_api/command_api.h"
 
 #include "util/misc.h"
 #include "util/config_token.h"
-#include <syslog.h>
 
 #define MAX_WELCOME_SIZE 16384
 

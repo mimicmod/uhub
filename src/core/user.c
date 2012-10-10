@@ -46,8 +46,8 @@ struct hub_user* user_create(struct hub_info* hub, struct net_connection* con, s
 	if (user == NULL)
 		return NULL; /* OOM */
 
-	user->send_queue = hub_sendq_create();
-	user->recv_queue = hub_recvq_create();
+	user->send_queue = ioq_send_create();
+	user->recv_queue = ioq_recv_create();
 
 	user->connection = con;
 	net_con_reinitialize(user->connection, net_event, user, NET_EVENT_READ);
@@ -60,6 +60,8 @@ struct hub_user* user_create(struct hub_info* hub, struct net_connection* con, s
 	flood_control_reset(&user->flood_search);
 	flood_control_reset(&user->flood_update);
 	flood_control_reset(&user->flood_extras);
+
+	user->hub = hub;
 	return user;
 }
 
@@ -68,8 +70,8 @@ void user_destroy(struct hub_user* user)
 {
 	LOG_TRACE("user_destroy(), user=%p", user);
 
-	hub_recvq_destroy(user->recv_queue);
-	hub_sendq_destroy(user->send_queue);
+	ioq_recv_destroy(user->recv_queue);
+	ioq_send_destroy(user->send_queue);
 
 	if (user->connection)
 	{

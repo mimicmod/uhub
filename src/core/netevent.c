@@ -18,17 +18,14 @@
  */
 
 #include <uhub.h>
-#include "hubio.h"
+#include "ioqueue.h"
 #include "probe.h"
-
-/* FIXME: This should not be needed! */
-extern struct hub_info* g_hub;
 
 int handle_net_read(struct hub_user* user)
 {
 	static char buf[MAX_RECV_BUF];
-	struct hub_recvq* q = user->recv_queue;
-	size_t buf_size = hub_recvq_get(q, buf, MAX_RECV_BUF);
+	struct ioq_recv* q = user->recv_queue;
+	size_t buf_size = ioq_recv_get(q, buf, MAX_RECV_BUF);
 	ssize_t size;
 
 	if (user_flag_get(user, flag_maxbuf))
@@ -58,7 +55,7 @@ int handle_net_read(struct hub_user* user)
 
 		while ((pos = memchr(start, '\n', remaining)))
 		{
-			lastPos = pos;
+			lastPos = pos+1;
 			pos[0] = '\0';
 
 #ifdef DEBUG_SENDQ
@@ -71,9 +68,9 @@ int handle_net_read(struct hub_user* user)
 			}
 			else
 			{
-				if (((pos - start) > 0) && g_hub->config->max_recv_buffer > (pos - start))
+				if (((pos - start) > 0) && user->hub->config->max_recv_buffer > (pos - start))
 				{
-					if (hub_handle_message(g_hub, user, start, (pos - start)) == -1)
+					if (hub_handle_message(user->hub, user, start, (pos - start)) == -1)
 					{
 							return quit_protocol_error;
 					}
@@ -88,20 +85,20 @@ int handle_net_read(struct hub_user* user)
 
 		if (lastPos || remaining)
 		{
-			if (remaining < (size_t) g_hub->config->max_recv_buffer)
+			if (remaining < (size_t) user->hub->config->max_recv_buffer)
 			{
-				hub_recvq_set(q, lastPos ? lastPos : buf, remaining);
+				ioq_recv_set(q, lastPos ? lastPos : buf, remaining);
 			}
 			else
 			{
-				hub_recvq_set(q, 0, 0);
+				ioq_recv_set(q, 0, 0);
 				user_flag_set(user, flag_maxbuf);
 				LOG_WARN("Received message past max_recv_buffer, dropping message.");
 			}
 		}
 		else
 		{
-			hub_recvq_set(q, 0, 0);
+			ioq_recv_set(q, 0, 0);
 		}
 	}
 	return 0;
@@ -110,9 +107,9 @@ int handle_net_read(struct hub_user* user)
 int handle_net_write(struct hub_user* user)
 {
 	int ret = 0;
-	while (hub_sendq_get_bytes(user->send_queue))
+	while (ioq_send_get_bytes(user->send_queue))
 	{
-		ret = hub_sendq_send(user->send_queue, user);
+		ret = ioq_send_send(user->send_queue, user->connection);
 		if (ret <= 0)
 			break;
 	}
@@ -120,7 +117,7 @@ int handle_net_write(struct hub_user* user)
 	if (ret < 0)
 		return quit_socket_error;
 
-	if (hub_sendq_get_bytes(user->send_queue))
+	if (ioq_send_get_bytes(user->send_queue))
 	{
 		user_net_io_want_write(user);
 	}
@@ -144,7 +141,7 @@ void net_event(struct net_connection* con, int event, void *arg)
 	{
 		if (user_is_connecting(user))
 		{
-			hub_disconnect_user(g_hub, user, quit_timeout);
+			hub_disconnect_user(user->hub, user, quit_timeout);
 		}
 		return;
 	}
@@ -154,7 +151,7 @@ void net_event(struct net_connection* con, int event, void *arg)
 		flag_close = handle_net_read(user);
 		if (flag_close)
 		{
-			hub_disconnect_user(g_hub, user, flag_close);
+			hub_disconnect_user(user->hub, user, flag_close);
 			return;
 		}
 	}
@@ -164,7 +161,7 @@ void net_event(struct net_connection* con, int event, void *arg)
 		flag_close = handle_net_write(user);
 		if (flag_close)
 		{
-			hub_disconnect_user(g_hub, user, flag_close);
+			hub_disconnect_user(user->hub, user, flag_close);
 			return;
 		}
 	}

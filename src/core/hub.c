@@ -110,21 +110,21 @@ int hub_handle_message(struct hub_info* hub, struct hub_user* u, const char* lin
 
 			case ADC_CMD_DRES:
 				cmd->priority = -1;
-				if (plugin_handle_search_result(hub, u, uman_get_user_by_sid(hub, cmd->target), cmd->cache) == st_deny)
+				if (plugin_handle_search_result(hub, u, uman_get_user_by_sid(hub->users, cmd->target), cmd->cache) == st_deny)
 					break;
 				/* CHECK_FLOOD(search, 0); */
 				ROUTE_MSG;
 
 			case ADC_CMD_DRCM:
 				cmd->priority = -1;
-				if (plugin_handle_revconnect(hub, u, uman_get_user_by_sid(hub, cmd->target)) == st_deny)
+				if (plugin_handle_revconnect(hub, u, uman_get_user_by_sid(hub->users, cmd->target)) == st_deny)
 					break;
 				CHECK_FLOOD(connect, 1);
 				ROUTE_MSG;
 
 			case ADC_CMD_DCTM:
 				cmd->priority = -1;
-				if (plugin_handle_connect(hub, u, uman_get_user_by_sid(hub, cmd->target)) == st_deny)
+				if (plugin_handle_connect(hub, u, uman_get_user_by_sid(hub->users, cmd->target)) == st_deny)
 					break;
 				CHECK_FLOOD(connect, 1);
 				ROUTE_MSG;
@@ -340,7 +340,7 @@ int hub_handle_chat_message(struct hub_info* hub, struct hub_user* u, struct adc
 		}
 		else if (private_msg)
 		{
-			struct hub_user* target = uman_get_user_by_sid(hub, cmd->target);
+			struct hub_user* target = uman_get_user_by_sid(hub->users, cmd->target);
 			if (target)
 				status = plugin_handle_private_message(hub, u, target, message_decoded, 0);
 			else
@@ -381,7 +381,7 @@ void hub_send_sid(struct hub_info* hub, struct hub_user* u)
 	if (user_is_connecting(u))
 	{
 		command = adc_msg_construct(ADC_CMD_ISID, 10);
-		sid = uman_get_free_sid(hub, u);
+		sid = uman_get_free_sid(hub->users, u);
 		adc_msg_add_argument(command, (const char*) sid_to_string(sid));
 		route_to_user(hub, u, command);
 		adc_msg_free(command);
@@ -520,11 +520,11 @@ static int check_duplicate_logins_ok(struct hub_info* hub, struct hub_user* user
 	struct hub_user* lookup1;
 	struct hub_user* lookup2;
 
-	lookup1 = uman_get_user_by_nick(hub, user->id.nick);
+	lookup1 = uman_get_user_by_nick(hub->users, user->id.nick);
 	if (lookup1)
 		return status_msg_inf_error_nick_taken;
 
-	lookup2 = uman_get_user_by_cid(hub,  user->id.cid);
+	lookup2 = uman_get_user_by_cid(hub->users, user->id.cid);
 	if (lookup2)
 		return status_msg_inf_error_cid_taken;
 
@@ -568,8 +568,8 @@ static void hub_event_dispatcher(void* callback_data, struct event_data* message
 
 		case UHUB_EVENT_USER_QUIT:
 		{
-			uman_remove(hub, user);
-			uman_send_quit_message(hub, user);
+			uman_remove(hub->users, user);
+			uman_send_quit_message(hub, hub->users, user);
 			on_logout_user(hub, user);
 			hub_schedule_destroy_user(hub, user);
 			break;
@@ -586,7 +586,7 @@ static void hub_event_dispatcher(void* callback_data, struct event_data* message
 			struct hub_user* u = (struct hub_user*) list_get_first(hub->users->list);
 			while (u)
 			{
-				uman_remove(hub, u);
+				uman_remove(hub->users, u);
 				user_destroy(u);
 				u = (struct hub_user*) list_get_first(hub->users->list);
 			}
@@ -598,6 +598,31 @@ static void hub_event_dispatcher(void* callback_data, struct event_data* message
 			/* FIXME: ignored */
 			break;
 	}
+}
+
+
+static void hub_update_stats(struct hub_info* hub)
+{
+	const int factor = TIMEOUT_STATS;
+	struct net_statistics* total;
+	struct net_statistics* intermediate;
+	net_stats_get(&intermediate, &total);
+
+	hub->stats.net_tx = (intermediate->tx / factor);
+	hub->stats.net_rx = (intermediate->rx / factor);
+	hub->stats.net_tx_peak = MAX(hub->stats.net_tx, hub->stats.net_tx_peak);
+	hub->stats.net_rx_peak = MAX(hub->stats.net_rx, hub->stats.net_rx_peak);
+	hub->stats.net_tx_total = total->tx;
+	hub->stats.net_rx_total = total->rx;
+
+	net_stats_reset();
+}
+
+static void hub_timer_statistics(struct timeout_evt* t)
+{
+	struct hub_info* hub = (struct hub_info*) t->ptr;
+	hub_update_stats(hub);
+	timeout_queue_reschedule(net_backend_get_timeout_queue(), hub->stats.timeout, TIMEOUT_STATS);
 }
 
 static struct net_connection* start_listening_socket(const char* bind_addr, uint16_t port, int backlog, struct hub_info* hub)
@@ -781,7 +806,8 @@ struct hub_info* hub_start_service(struct hub_config* config)
 	hub->config = config;
 	hub->users = NULL;
 
-	if (uman_init(hub) == -1)
+	hub->users = uman_init();
+	if (!hub->users)
 	{
 		net_con_close(hub->server);
 		hub_free(hub);
@@ -791,7 +817,7 @@ struct hub_info* hub_start_service(struct hub_config* config)
 	if (event_queue_initialize(&hub->queue, hub_event_dispatcher, (void*) hub) == -1)
 	{
 		net_con_close(hub->server);
-		uman_shutdown(hub);
+		uman_shutdown(hub->users);
 		hub_free(hub);
 		return 0;
 	}
@@ -803,7 +829,7 @@ struct hub_info* hub_start_service(struct hub_config* config)
 		net_con_close(hub->server);
 		hub_free(hub->recvbuf);
 		hub_free(hub->sendbuf);
-		uman_shutdown(hub);
+		uman_shutdown(hub->users);
 		hub_free(hub);
 		return 0;
 	}
@@ -815,6 +841,13 @@ struct hub_info* hub_start_service(struct hub_config* config)
 
 	g_hub = hub;
 
+	if (net_backend_get_timeout_queue())
+	{
+		hub->stats.timeout = hub_malloc_zero(sizeof(struct timeout_evt));
+		timeout_evt_initialize(hub->stats.timeout, hub_timer_statistics, hub);
+		timeout_queue_insert(net_backend_get_timeout_queue(), hub->stats.timeout, TIMEOUT_STATS);
+	}
+
 	// Start the hub command sub-system
 	hub->commands = command_initialize(hub);
 	return hub;
@@ -825,6 +858,12 @@ void hub_shutdown_service(struct hub_info* hub)
 {
 	LOG_DEBUG("hub_shutdown_service()");
 
+	if (net_backend_get_timeout_queue())
+	{
+		timeout_queue_remove(net_backend_get_timeout_queue(), hub->stats.timeout);
+		hub_free(hub->stats.timeout);
+	}
+
 #ifdef SSL_SUPPORT
 	unload_ssl_certificates(hub);
 #endif
@@ -832,7 +871,7 @@ void hub_shutdown_service(struct hub_info* hub)
 	event_queue_shutdown(hub->queue);
 	net_con_close(hub->server);
 	server_alt_port_stop(hub);
-	uman_shutdown(hub);
+	uman_shutdown(hub->users);
 	hub->status = hub_status_stopped;
 	hub_free(hub->sendbuf);
 	hub_free(hub->recvbuf);

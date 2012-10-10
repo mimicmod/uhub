@@ -1,12 +1,18 @@
 *~
 *.[oa]
+*.lib
 *.exe
+*.manifest
 *.gch
+CMakeFiles/*
+CMakeCache.txt
+cmake_install.cmake
+mod_*.dll
+mod_*.exp
 mod_*.so
 uhub-admin
 adcrush
 uhub
-revision.h*
 build-stamp
 debian/files
 debian/uhub.debhelper.log
@@ -15,3 +21,4 @@ debian/uhub.postrm.debhelper
 debian/uhub.prerm.debhelper
 debian/uhub.substvars
 uhub-passwd
+src/version.h

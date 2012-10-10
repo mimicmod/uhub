@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2010, Jan Vidar Krey
+ * Copyright (C) 2007-2012, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #define TIMEOUT_CONNECTED 15
 #define TIMEOUT_HANDSHAKE 30
 #define TIMEOUT_SENDQ     120
-#define TIMEOUT_STATS     60
+#define TIMEOUT_STATS     10
 
 #define MAX_CID_LEN  39
 #define MAX_NICK_LEN 64
@@ -63,7 +63,6 @@ extern "C" {
 #include "util/credentials.h"
 #include "util/floodctl.h"
 #include "util/getopt.h"
-#include "util/ipcalc.h"
 #include "util/list.h"
 #include "util/log.h"
 #include "util/memory.h"
@@ -75,6 +74,7 @@ extern "C" {
 
 #include "network/network.h"
 #include "network/connection.h"
+#include "network/ipcalc.h"
 #include "network/timeout.h"
 
 #include "core/auth.h"
@@ -82,7 +82,7 @@ extern "C" {
 #include "core/eventid.h"
 #include "core/eventqueue.h"
 #include "core/netevent.h"
-#include "core/hubio.h"
+#include "core/ioqueue.h"
 #include "core/user.h"
 #include "core/usermanager.h"
 #include "core/route.h"
