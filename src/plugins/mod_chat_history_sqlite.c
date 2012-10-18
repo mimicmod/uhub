@@ -118,7 +118,7 @@ static int get_messages_callback(void* ptr, int argc, char **argv, char **colNam
 {
 	struct linked_list* messages = (struct linked_list*) ptr;
 	struct chat_history_line* line = hub_malloc(sizeof(struct chat_history_line));
-	int i = 1;
+	int i = 0;
 	
 	memset(line, 0, sizeof(struct chat_history_line));
 	
