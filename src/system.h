@@ -99,8 +99,13 @@
 #endif
 
 #ifdef SSL_SUPPORT
+#ifdef SSL_USE_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif /* SSL_USE_OPENSSL */
+#ifdef SSL_USE_GNUTLS
+#include <gnutls/gnutls.h>
+#endif /* SSL_USE_GNUTLS */
 #endif
 
 #include "version.h"
@@ -124,7 +129,7 @@
 #include <sys/select.h>
 #endif
 
-#if defined(BSD_LIKE) || defined(__sun__)
+#if ( defined(BSD_LIKE) && !defined(__FreeBSD_kernel__) ) || defined(__sun__)
 #undef HAVE_STRNDUP
 #undef HAVE_MEMMEM
 #endif

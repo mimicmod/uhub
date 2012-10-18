@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2010, Jan Vidar Krey
+ * Copyright (C) 2007-2012, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,11 @@ int net_initialize()
 		}
 #endif /* WINSOCK */
 
-		if (!net_backend_init())
+		if (!net_backend_init()
+#ifdef SSL_SUPPORT
+			|| !net_ssl_library_init()
+#endif
+			)
 		{
 #ifdef WINSOCK
 			WSACleanup();
@@ -57,13 +61,6 @@ int net_initialize()
 			return -1;
 		}
 		net_stats_initialize();
-
-#ifdef SSL_SUPPORT
-		LOG_TRACE("Initializing OpenSSL...");
-		SSL_library_init();
-		SSL_load_error_strings();
-#endif /*  SSL_SUPPORT */
-
 		net_initialized = 1;
 		return 0;
 	}
@@ -100,10 +97,8 @@ int net_destroy()
 		net_backend_shutdown();
 		
 #ifdef SSL_SUPPORT
-		ERR_free_strings();
-		EVP_cleanup();
-		CRYPTO_cleanup_all_ex_data();
-#endif
+		net_ssl_library_shutdown();
+#endif /* SSL_SUPPORT */
 
 #ifdef WINSOCK
 		WSACleanup();

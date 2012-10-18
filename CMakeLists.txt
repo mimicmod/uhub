@@ -17,13 +17,21 @@ set (PROJECT_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src")
 option(RELEASE "Release build, debug build if disabled" ON)
 option(LINK_SUPPORT "Allow hub linking" OFF)
 option(SSL_SUPPORT "Enable SSL support" ON)
+option(USE_OPENSSL "Use OpenSSL's SSL support" ON )
 option(SQLITE_SUPPORT "Enable SQLite support" ON)
 option(ADC_STRESS "Enable the stress tester client" OFF)
 
 find_package(Git)
 
 if (SSL_SUPPORT)
-	find_package(OpenSSL REQUIRED)
+	if (USE_OPENSSL)
+		find_package(OpenSSL)
+	else()
+		find_package(GnuTLS)
+	endif()
+	if (NOT GNUTLS_FOUND AND NOT OPENSSL_FOUND)
+		message(FATAL_ERROR "Neither OpenSSL nor GnuTLS are not found!")
+	endif()
 endif()
 
 if (MSVC)
@@ -32,56 +40,15 @@ endif()
 
 include_directories("${PROJECT_SOURCE_DIR}")
 
-set (network_SOURCES
-	${PROJECT_SOURCE_DIR}/network/backend.c
-	${PROJECT_SOURCE_DIR}/network/connection.c
-	${PROJECT_SOURCE_DIR}/network/epoll.c
-	${PROJECT_SOURCE_DIR}/network/kqueue.c
-	${PROJECT_SOURCE_DIR}/network/select.c
-	${PROJECT_SOURCE_DIR}/network/timeout.c
-	${PROJECT_SOURCE_DIR}/network/timer.c
-	${PROJECT_SOURCE_DIR}/network/network.c
-	${PROJECT_SOURCE_DIR}/network/ipcalc.c
+file (GLOB uhub_SOURCES ${PROJECT_SOURCE_DIR}/core/*.c)
+list (REMOVE_ITEM uhub_SOURCES
+	${PROJECT_SOURCE_DIR}/core/gen_config.c
+	${PROJECT_SOURCE_DIR}/core/main.c
 )
 
-set (uhub_SOURCES
-	${PROJECT_SOURCE_DIR}/core/auth.c
-	${PROJECT_SOURCE_DIR}/core/command_parser.c
-	${PROJECT_SOURCE_DIR}/core/commands.c
-	${PROJECT_SOURCE_DIR}/core/config.c
-	${PROJECT_SOURCE_DIR}/core/eventqueue.c
-	${PROJECT_SOURCE_DIR}/core/hub.c
-	${PROJECT_SOURCE_DIR}/core/hubevent.c
-	${PROJECT_SOURCE_DIR}/core/inf.c
-	${PROJECT_SOURCE_DIR}/core/ioqueue.c
-	${PROJECT_SOURCE_DIR}/core/netevent.c
-	${PROJECT_SOURCE_DIR}/core/probe.c
-	${PROJECT_SOURCE_DIR}/core/route.c
-	${PROJECT_SOURCE_DIR}/core/user.c
-	${PROJECT_SOURCE_DIR}/core/usermanager.c
-	${PROJECT_SOURCE_DIR}/core/plugincallback.c
-	${PROJECT_SOURCE_DIR}/core/plugininvoke.c
-	${PROJECT_SOURCE_DIR}/core/pluginloader.c
-)
-
-set (adc_SOURCES
-	${PROJECT_SOURCE_DIR}/adc/message.c
-	${PROJECT_SOURCE_DIR}/adc/sid.c
-)
-
-set (utils_SOURCES
-	${PROJECT_SOURCE_DIR}/util/cbuffer.c
-	${PROJECT_SOURCE_DIR}/util/config_token.c
-	${PROJECT_SOURCE_DIR}/util/credentials.c
-	${PROJECT_SOURCE_DIR}/util/floodctl.c
-	${PROJECT_SOURCE_DIR}/util/getopt.c
-	${PROJECT_SOURCE_DIR}/util/list.c
-	${PROJECT_SOURCE_DIR}/util/log.c
-	${PROJECT_SOURCE_DIR}/util/memory.c
-	${PROJECT_SOURCE_DIR}/util/misc.c
-	${PROJECT_SOURCE_DIR}/util/rbtree.c
-	${PROJECT_SOURCE_DIR}/util/tiger.c
-)
+file (GLOB adc_SOURCES ${PROJECT_SOURCE_DIR}/adc/*.c)
+file (GLOB network_SOURCES ${PROJECT_SOURCE_DIR}/network/*.c)
+file (GLOB utils_SOURCES ${PROJECT_SOURCE_DIR}/util/*.c)
 
 set (adcclient_SOURCES
 	${PROJECT_SOURCE_DIR}/tools/adcclient.c
@@ -134,7 +101,6 @@ if (SQLITE_SUPPORT)
 endif()
 
 
-
 if(WIN32)
 	target_link_libraries(uhub ws2_32)
 	target_link_libraries(mod_logging ws2_32)
@@ -174,24 +140,44 @@ if(UNIX)
 	endif()
 endif()
 
-if(GIT_FOUND AND IS_DIRECTORY ".git")
-	execute_process(COMMAND ${GIT_EXECUTABLE} show -s --pretty=format:%h OUTPUT_VARIABLE UHUB_REVISION)
-	set (UHUB_GIT_VERSION "${UHUB_VERSION_MAJOR}.${UHUB_VERSION_MINOR}.${UHUB_VERSION_PATCH}-git-${UHUB_REVISION}")
-else()
-	set (UHUB_GIT_VERSION "${UHUB_VERSION_MAJOR}.${UHUB_VERSION_MINOR}.${UHUB_VERSION_PATCH}-release")
+if (NOT UHUB_REVISION AND GIT_FOUND)
+	execute_process(COMMAND ${GIT_EXECUTABLE} show -s --pretty=format:%h
+					WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+					OUTPUT_VARIABLE UHUB_REVISION_TEMP
+					OUTPUT_STRIP_TRAILING_WHITESPACE)
+	if (UHUB_REVISION_TEMP)
+		set (UHUB_REVISION "git-${UHUB_REVISION_TEMP}")
+	endif()
 endif()
 
+if (NOT UHUB_REVISION)
+	set (UHUB_REVISION "release")
+endif()
+
+set (UHUB_GIT_VERSION "${UHUB_VERSION_MAJOR}.${UHUB_VERSION_MINOR}.${UHUB_VERSION_PATCH}-${UHUB_REVISION}")
+message (STATUS "Configuring uhub version: ${UHUB_GIT_VERSION}")
+
 if(OPENSSL_FOUND)
-	add_definitions(-DSSL_SUPPORT=1)
+	set(SSL_LIBS ${OPENSSL_LIBRARIES})
+	add_definitions(-DSSL_SUPPORT=1 -DSSL_USE_OPENSSL=1)
 	include_directories(${OPENSSL_INCLUDE_DIR})
-	target_link_libraries(uhub ${OPENSSL_LIBRARIES})
+endif()
+
+if (GNUTLS_FOUND)
+	set(SSL_LIBS ${GNUTLS_LIBRARIES})
+	add_definitions(-DSSL_SUPPORT=1 -DSSL_USE_GNUTLS=1 ${GNUTLS_DEFINITIONS})
+	include_directories(${GNUTLS_INCLUDE_DIR})
+endif()
+
+if(SSL_SUPPORT)
+	target_link_libraries(uhub ${SSL_LIBS})
 	if(UNIX)
-		target_link_libraries(uhub-admin ${OPENSSL_LIBRARIES})
+		target_link_libraries(uhub-admin ${SSL_LIBS})
 	endif()
-	target_link_libraries(mod_welcome ${OPENSSL_LIBRARIES})
-	target_link_libraries(mod_logging ${OPENSSL_LIBRARIES})
+	target_link_libraries(mod_welcome ${SSL_LIBS})
+	target_link_libraries(mod_logging ${SSL_LIBS})
 	if (ADC_STRESS)
-		target_link_libraries(adcrush ${OPENSSL_LIBRARIES})
+		target_link_libraries(adcrush ${SSL_LIBS})
 	endif()
 endif()
 
@@ -207,7 +193,7 @@ endif()
 
 if (UNIX)
 	install( TARGETS uhub RUNTIME DESTINATION bin )
-	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_auth_sqlite mod_chat_history_sqlite mod_patterns mod_extras mod_chat_history mod_chat_only mod_topic DESTINATION /var/lib/uhub/ OPTIONAL )
+	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_auth_sqlite mod_chat_history_sqlite mod_patterns mod_extras mod_chat_history mod_chat_only mod_topic DESTINATION /usr/lib/uhub/ OPTIONAL )
 	install( FILES ${CMAKE_SOURCE_DIR}/doc/uhub.conf ${CMAKE_SOURCE_DIR}/doc/plugins.conf ${CMAKE_SOURCE_DIR}/doc/rules.txt ${CMAKE_SOURCE_DIR}/doc/motd.txt DESTINATION /etc/uhub OPTIONAL )
 
 	if (SQLITE_SUPPORT)
@@ -216,6 +202,3 @@ if (UNIX)
 endif()
 
 
-
-
- 
