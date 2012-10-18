@@ -85,7 +85,7 @@ if (SQLITE_SUPPORT)
 
 	target_link_libraries(mod_auth_sqlite sqlite3 utils)
 	target_link_libraries(mod_chat_history_sqlite sqlite3 utils)
-	target_link_libraries(mod_patterns sqlite3 utils)
+	target_link_libraries(mod_patterns sqlite3 pcre utils)
 	target_link_libraries(mod_extras sqlite3 utils)
 	target_link_libraries(uhub-passwd sqlite3 utils)
 	set_target_properties(
