@@ -20,6 +20,7 @@ option(SSL_SUPPORT "Enable SSL support" ON)
 option(USE_OPENSSL "Use OpenSSL's SSL support" ON )
 option(SQLITE_SUPPORT "Enable SQLite support" ON)
 option(ADC_STRESS "Enable the stress tester client" OFF)
+option(PCRE_SUPPORT "Enable PCRE support" ON)
 
 find_package(Git)
 
@@ -31,6 +32,30 @@ if (SSL_SUPPORT)
 	endif()
 	if (NOT GNUTLS_FOUND AND NOT OPENSSL_FOUND)
 		message(FATAL_ERROR "Neither OpenSSL nor GnuTLS are not found!")
+	endif()
+endif()
+
+if (PCRE_SUPPORT)
+	find_path(PCRE_HDRS pcre.h
+		/usr/include/
+		/usr/local/include/)
+
+	find_library(PCRE_PCRE_LIBRARY NAMES pcre
+		PATHS
+		/usr/lib
+		/usr/local/lib)
+
+	find_library(PCRE_PCREPOSIX_LIBRARY NAMES pcreposix
+		PATHS
+		/usr/lib
+		/usr/local/lib)
+
+	if (PCRE_HDRS AND PCRE_PCRE_LIBRARY AND PCRE_PCREPOSIX_LIBRARY)
+		set (PCRE_FOUND TRUE)
+	endif ()
+
+	if (NOT PCRE_FOUND)
+		message(FATAL_ERROR "PCRE not found!")
 	endif()
 endif()
 
@@ -79,21 +104,25 @@ add_library(mod_topic MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_topic.c)
 if (SQLITE_SUPPORT)
 	add_library(mod_auth_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_auth_sqlite.c)
 	add_library(mod_chat_history_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_history_sqlite.c)
-	add_library(mod_patterns MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_patterns.c)
 	add_library(mod_extras MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_extras.c)
 	add_executable(uhub-passwd ${PROJECT_SOURCE_DIR}/tools/uhub-passwd.c)
 
 	target_link_libraries(mod_auth_sqlite sqlite3 utils)
 	target_link_libraries(mod_chat_history_sqlite sqlite3 utils)
-	target_link_libraries(mod_patterns sqlite3 pcre utils)
 	target_link_libraries(mod_extras sqlite3 utils)
 	target_link_libraries(uhub-passwd sqlite3 utils)
+
 	set_target_properties(
 		mod_auth_sqlite
 		mod_chat_history_sqlite
-		mod_patterns
 		mod_extras
 		PROPERTIES PREFIX "")
+
+	if (PCRE_SUPPORT)
+		add_library(mod_patterns MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_patterns.c)
+		target_link_libraries(mod_patterns sqlite3 pcre utils)
+		set_target_properties(mod_patterns PROPERTIES PREFIX "")
+	endif()
 
 	if (UNIX)
 		target_link_libraries(uhub pthread)
@@ -193,8 +222,19 @@ endif()
 
 if (UNIX)
 	install( TARGETS uhub RUNTIME DESTINATION bin )
-	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_auth_sqlite mod_chat_history_sqlite mod_patterns mod_extras mod_chat_history mod_chat_only mod_topic DESTINATION /usr/lib/uhub/ OPTIONAL )
-	install( FILES ${CMAKE_SOURCE_DIR}/doc/uhub.conf ${CMAKE_SOURCE_DIR}/doc/plugins.conf ${CMAKE_SOURCE_DIR}/doc/rules.txt ${CMAKE_SOURCE_DIR}/doc/motd.txt DESTINATION /etc/uhub OPTIONAL )
+	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_chat_history mod_chat_only mod_topic DESTINATION /usr/lib/uhub/ OPTIONAL )
+
+	if (SQLITE_SUPPORT)
+		install( TARGETS mod_auth_sqlite mod_chat_history_sqlite mod_extras DESTINATION /usr/lib/uhub/ OPTIONAL )
+		if (PCRE_SUPPORT)
+			install( TARGETS mod_patterns DESTINATION /usr/lib/uhub/ OPTIONAL )
+		endif()
+	endif()
+
+	find_path(UHUB_CFG_FOUND uhub.conf PATHS /etc/uhub)
+	if (NOT UHUB_CFG_FOUND)
+		install( FILES ${CMAKE_SOURCE_DIR}/doc/uhub.conf ${CMAKE_SOURCE_DIR}/doc/plugins.conf ${CMAKE_SOURCE_DIR}/doc/rules.txt ${CMAKE_SOURCE_DIR}/doc/motd.txt DESTINATION /etc/uhub OPTIONAL )
+	endif()
 
 	if (SQLITE_SUPPORT)
 		install( TARGETS uhub-passwd RUNTIME DESTINATION bin )
