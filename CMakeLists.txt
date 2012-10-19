@@ -225,6 +225,7 @@ if (UNIX)
 	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_chat_history mod_chat_only mod_topic DESTINATION /usr/lib/uhub/ OPTIONAL )
 
 	if (SQLITE_SUPPORT)
+		install( TARGETS uhub-passwd RUNTIME DESTINATION bin )
 		install( TARGETS mod_auth_sqlite mod_chat_history_sqlite mod_extras DESTINATION /usr/lib/uhub/ OPTIONAL )
 		if (PCRE_SUPPORT)
 			install( TARGETS mod_patterns DESTINATION /usr/lib/uhub/ OPTIONAL )
@@ -234,10 +235,6 @@ if (UNIX)
 	find_path(UHUB_CFG_FOUND uhub.conf PATHS /etc/uhub)
 	if (NOT UHUB_CFG_FOUND)
 		install( FILES ${CMAKE_SOURCE_DIR}/doc/uhub.conf ${CMAKE_SOURCE_DIR}/doc/plugins.conf ${CMAKE_SOURCE_DIR}/doc/rules.txt ${CMAKE_SOURCE_DIR}/doc/motd.txt DESTINATION /etc/uhub OPTIONAL )
-	endif()
-
-	if (SQLITE_SUPPORT)
-		install( TARGETS uhub-passwd RUNTIME DESTINATION bin )
 	endif()
 endif()
 
