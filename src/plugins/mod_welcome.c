@@ -37,6 +37,7 @@ struct welcome_data
 	char* motd;
 	char* rules_file;
 	char* rules;
+	int srvtdiff;
 	struct plugin_command_handle* cmd_motd;
 	struct plugin_command_handle* cmd_rules;
 };
@@ -104,6 +105,8 @@ static struct welcome_data* parse_config(const char* line, struct plugin_handle*
 	if (!data)
 		return 0;
 
+	data->srvtdiff = 0;
+
 	while (token)
 	{
 		struct cfg_settings* setting = cfg_settings_split(token);
@@ -140,6 +143,10 @@ static struct welcome_data* parse_config(const char* line, struct plugin_handle*
 			data->cmd_rules = hub_malloc_zero(sizeof(struct plugin_command_handle));
 			PLUGIN_COMMAND_INITIALIZE(data->cmd_rules, (void*) data, "rules", "", auth_cred_guest, command_handler_rules, "Show the hub rules.");
 		}
+		else if (strcmp(cfg_settings_get_key(setting), "server_time_diff") == 0)
+		{
+			data->srvtdiff = uhub_atoi(cfg_settings_get_value(setting));
+		}
 		else
 		{
 			set_error_message(plugin, "Unknown startup parameters given");
@@ -161,12 +168,12 @@ cleanup_parse_error:
 }
 
 
-static struct cbuffer* parse_message(struct plugin_user* user, const char* msg)
+static struct cbuffer* parse_message(struct welcome_data* data, struct plugin_user* user, const char* msg)
 {
 	struct cbuffer* buf = cbuf_create(strlen(msg));
 	const char* start = msg;
 	const char* offset = NULL;
-	time_t timestamp = time(NULL);
+	time_t timestamp = time(NULL) + data->srvtdiff * 3600;
 	struct tm* now = localtime(&timestamp);
 
 	while ((offset = strchr(start, '%')))
@@ -231,7 +238,7 @@ static void send_motd(struct plugin_handle* plugin, struct plugin_user* user)
 	struct cbuffer* buf = NULL;
 	if (data->motd)
 	{
-		buf = parse_message(user, data->motd);
+		buf = parse_message(data, user, data->motd);
 		plugin->hub.send_message(plugin, user, cbuf_get(buf));
 		cbuf_destroy(buf);
 	}
@@ -243,7 +250,7 @@ static void send_rules(struct plugin_handle* plugin, struct plugin_user* user)
 	struct cbuffer* buf = NULL;
 	if (data->rules)
 	{
-		buf = parse_message(user, data->rules);
+		buf = parse_message(data, user, data->rules);
 		plugin->hub.send_message(plugin, user, cbuf_get(buf));
 		cbuf_destroy(buf);
 	}

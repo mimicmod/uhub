@@ -34,6 +34,7 @@ struct chat_history_data
 	size_t history_default;	///<<< "the default number of chat messages returned if no limit was provided"
 	size_t history_connect;	///<<< "the number of chat messages provided when users connect to the hub."
 	sqlite3* db;		///<<< "The chat history storage database."
+	int srvtdiff;		///<<< "Difference between server time and local hub time."
 	struct plugin_command_handle* command_history_handle;		///<<< "A handle to the !history command."
 	struct plugin_command_handle* command_historycleanup_handle;	///<<< "A handle to the !historycleanup command."
 };
@@ -103,8 +104,14 @@ static void history_add(struct plugin_handle* plugin, struct plugin_user* from, 
 	struct chat_history_data* data = (struct chat_history_data*) plugin->ptr;
 	char* history_line = strdup(sql_escape_string(message));
 	char* history_nick = strdup(sql_escape_string(from->nick));
+	char modifier[30];
+	
+	if (data->srvtdiff == 0)
+		sprintf(modifier, "'localtime'");
+	else
+		sprintf(modifier, "'localtime', '%d hours'", data->srvtdiff);
 
-	sql_execute(data, null_callback, NULL, "INSERT INTO chat_history (from_nick, message) VALUES('%s', '%s');DELETE FROM chat_history WHERE time <= (SELECT time FROM chat_history ORDER BY time DESC LIMIT %d,1);", history_nick, history_line, data->history_max);
+	sql_execute(data, null_callback, NULL, "INSERT INTO chat_history (from_nick, message, time) VALUES('%s', '%s', DATETIME('NOW', %s));DELETE FROM chat_history WHERE time <= (SELECT time FROM chat_history ORDER BY time DESC LIMIT %d,1);", history_nick, history_line, modifier, data->history_max);
 
 	hub_free(history_line);
 	hub_free(history_nick);
@@ -283,6 +290,10 @@ static struct chat_history_data* parse_config(const char* line, struct plugin_ha
 		else if (strcmp(cfg_settings_get_key(setting), "history_connect") == 0)
 		{
 			data->history_connect = (size_t) uhub_atoi(cfg_settings_get_value(setting));
+		}
+		else if (strcmp(cfg_settings_get_key(setting), "server_time_diff") == 0)
+		{
+			data->srvtdiff = uhub_atoi(cfg_settings_get_value(setting));
 		}
 		else
 		{
