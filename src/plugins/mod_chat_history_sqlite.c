@@ -104,14 +104,8 @@ static void history_add(struct plugin_handle* plugin, struct plugin_user* from, 
 	struct chat_history_data* data = (struct chat_history_data*) plugin->ptr;
 	char* history_line = strdup(sql_escape_string(message));
 	char* history_nick = strdup(sql_escape_string(from->nick));
-	char modifier[30];
-	
-	if (data->srvtdiff == 0)
-		sprintf(modifier, "'localtime'");
-	else
-		sprintf(modifier, "'localtime', '%d hours'", data->srvtdiff);
 
-	sql_execute(data, null_callback, NULL, "INSERT INTO chat_history (from_nick, message, time) VALUES('%s', '%s', DATETIME('NOW', %s));DELETE FROM chat_history WHERE time <= (SELECT time FROM chat_history ORDER BY time DESC LIMIT %d,1);", history_nick, history_line, modifier, data->history_max);
+	sql_execute(data, null_callback, NULL, "INSERT INTO chat_history (from_nick, message, time) VALUES('%s', '%s', DATETIME('NOW', 'localtime', '%d hours'));DELETE FROM chat_history WHERE time <= (SELECT time FROM chat_history ORDER BY time DESC LIMIT %d,1);", history_nick, history_line, data->srvtdiff, data->history_max);
 
 	hub_free(history_line);
 	hub_free(history_nick);
