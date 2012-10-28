@@ -181,7 +181,7 @@ static void log_user_login_error(struct plugin_handle* plugin, struct plugin_use
 	char* nick = strdup(sql_escape_string(user->nick));
 	char* uagent = strdup(sql_escape_string(user->user_agent));
 
-	int rc = sql_execute(ldata, null_callback, NULL, "INSERT INTO userlog VALUES('%s', '%s', '%s', '', '%s'. '%s (%s)', DATETIME('NOW', 'localtime', '%d hours'));", nick, user->cid, addr, uagent, "LoginError", reason, ldata->srvtdiff);
+	int rc = sql_execute(ldata, null_callback, NULL, "INSERT INTO userlog VALUES('%s', '%s', '%s', '', '%s', '%s (%s)', DATETIME('NOW', 'localtime', '%d hours'));", nick, user->cid, addr, uagent, "LoginError", reason, ldata->srvtdiff);
 
 	if (rc < 0)
 		fprintf(stderr, "[SQLITE LOG] Unable to log: LoginError %s/%s %s \"%s\" (%s) \"%s\"\n", sid_to_string(user->sid), user->cid, addr, user->nick, reason, user->user_agent);
@@ -224,23 +224,28 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 {
 	struct log_data* ldata = (struct log_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
-	char* search = arg ? arg->data.string : "";
+	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	int lines = arg1 ? arg1->data.integer : 20;
+	char* search = arg2 ? arg2->data.string : "";
 	size_t search_len = strlen(search);
 	char query[1024];
 	sqlite3_stmt *res;
 	int error = 0;
 	const char *tail;
 	size_t count = 0;
+	
+	if (lines > 200)
+		lines = 200;
 
 	if (search_len)
 	{
-		sprintf(query, "SELECT * FROM userlog WHERE nick='%s' OR cid='%s' OR credentials='%s' OR useragent='%s' OR addr='%s' OR message LIKE '%%s%' ORDER BY time DESC;", search, search, search, search, search, search, search);
+		sprintf(query, "SELECT * FROM userlog WHERE nick='%s' OR cid='%s' OR credentials='%s' OR useragent='%s' OR addr='%s' OR message LIKE '%%%s%' ORDER BY time DESC LIMIT %d;", search, search, search, search, search, search, lines);
 		cbuf_append_format(buf, "*** %s: Searching for \"%s\".\n", cmd->prefix, search);
 	}
 	else
 	{
-		sprintf(query, "SELECT * FROM userlog ORDER BY time DESC LIMIT 0,20;");
+		sprintf(query, "SELECT * FROM userlog ORDER BY time DESC LIMIT %d;", lines);
 		cbuf_append_format(buf, "*** %s: ", cmd->prefix);
 	}
 
@@ -303,7 +308,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
 
 	ldata->command_userlog_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?m", auth_cred_operator, &command_userlog, "Search in userlog for a value.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?m", auth_cred_operator, &command_userlog, "Search in userlog for a value.");
 	plugin->hub.command_add(plugin, ldata->command_userlog_handle);
 
 	ldata->command_userlogcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
