@@ -106,12 +106,14 @@ if (SQLITE_SUPPORT)
 	add_library(mod_chat_history_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_history_sqlite.c)
 	add_library(mod_logging_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_logging_sqlite.c ${PROJECT_SOURCE_DIR}/adc/sid.c)
 	add_library(mod_extras MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_extras.c)
+	add_library(mod_joins MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_joins.c)
 	add_executable(uhub-passwd ${PROJECT_SOURCE_DIR}/tools/uhub-passwd.c)
 
 	target_link_libraries(mod_auth_sqlite sqlite3 utils)
 	target_link_libraries(mod_chat_history_sqlite sqlite3 utils)
-	target_link_libraries(mod_logging_sqlite sqlite3 utils)
+	target_link_libraries(mod_logging_sqlite sqlite3 utils network)
 	target_link_libraries(mod_extras sqlite3 utils)
+	target_link_libraries(mod_joins sqlite3 utils network)
 	target_link_libraries(uhub-passwd sqlite3 utils)
 
 	set_target_properties(
@@ -119,6 +121,7 @@ if (SQLITE_SUPPORT)
 		mod_chat_history_sqlite
 		mod_logging_sqlite
 		mod_extras
+		mod_joins
 		PROPERTIES PREFIX "")
 
 	if (PCRE_SUPPORT)
@@ -161,7 +164,6 @@ target_link_libraries(mod_topic utils)
 
 target_link_libraries(mod_welcome network)
 target_link_libraries(mod_logging network)
-target_link_libraries(mod_logging_sqlite network)
 
 if(UNIX)
 	add_library(adcclient STATIC ${adcclient_SOURCES})
@@ -232,7 +234,7 @@ if (UNIX)
 
 	if (SQLITE_SUPPORT)
 		install( TARGETS uhub-passwd RUNTIME DESTINATION bin )
-		install( TARGETS mod_auth_sqlite mod_chat_history_sqlite mod_logging_sqlite mod_extras DESTINATION /usr/lib/uhub/ OPTIONAL )
+		install( TARGETS mod_auth_sqlite mod_chat_history_sqlite mod_logging_sqlite mod_extras mod_joins DESTINATION /usr/lib/uhub/ OPTIONAL )
 		if (PCRE_SUPPORT)
 			install( TARGETS mod_patterns DESTINATION /usr/lib/uhub/ OPTIONAL )
 		endif()
