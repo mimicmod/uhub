@@ -17,21 +17,14 @@
  *
  */
 
-#include "system.h"
-#include "adc/adcconst.h"
-#include "adc/sid.h"
-#include "util/cbuffer.h"
-#include "util/memory.h"
-#include "network/ipcalc.h"
 #include "plugin_api/handle.h"
 #include "plugin_api/command_api.h"
-
-#include "util/misc.h"
+#include "util/memory.h"
 #include "util/config_token.h"
-#include <syslog.h>
+#include "util/cbuffer.h"
+#include "util/misc.h"
+#include "network/ipcalc.h"
 #include <sqlite3.h>
-
-#define DEBUG_SQL
 
 struct joins_data
 {
@@ -57,16 +50,9 @@ static int sql_execute(struct joins_data* sql, int (*callback)(void* ptr, int ar
 	va_start(args, sql_fmt);
 	vsnprintf(query, sizeof(query), sql_fmt, args);
 
-#ifdef DEBUG_SQL
-	fprintf(stderr, "SQL: %s\n", query);
-#endif
-
 	rc = sqlite3_exec(sql->db, query, callback, ptr, &errMsg);
 	if (rc != SQLITE_OK)
 	{
-#ifdef DEBUG_SQL
-		fprintf(stderr, "ERROR: %s\n", errMsg);
-#endif
 		sqlite3_free(errMsg);
 		return -rc;
 	}
@@ -259,7 +245,7 @@ static int command_joinmsg(struct plugin_handle* plugin, struct plugin_user* use
 {
 	struct joins_data* data = (struct joins_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
 	int rc = 0;
 
 	if (arg)
@@ -282,8 +268,8 @@ static int command_joinforce(struct plugin_handle* plugin, struct plugin_user* u
 {
 	struct joins_data* data = (struct joins_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
-	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
 	int rc = 0;
 
 	if (arg2)
@@ -306,7 +292,7 @@ static int command_joinset(struct plugin_handle* plugin, struct plugin_user* use
 {
 	struct joins_data* data = (struct joins_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
 	int rc = 0;
 
 	if (arg)
@@ -330,18 +316,21 @@ static int command_joinlist(struct plugin_handle* plugin, struct plugin_user* us
 	struct joins_data* data = (struct joins_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
 	sqlite3_stmt *res;
-	int error = 0;
+	size_t counter = 0;
 	const char *tail;
 	char *query = "SELECT * FROM joins ORDER BY nick ASC;";
 
-	cbuf_append_format(buf, "*** %s:\n", cmd->prefix);
+	cbuf_append_format(buf, "*** %s:", cmd->prefix);
 
-	error = sqlite3_prepare_v2(data->db, query, strlen(query), &res, &tail);
+	sqlite3_prepare_v2(data->db, query, strlen(query), &res, &tail);
 
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		cbuf_append_format(buf, "%s\t\"%s\"\n", (char*) sqlite3_column_text(res, 0), (char*) sqlite3_column_text(res, 1));
+		cbuf_append_format(buf, "\n%s\t\"%s\"", (char*) sqlite3_column_text(res, 0), (char*) sqlite3_column_text(res, 1));
+		counter++;
 	}
+
+	cbuf_append_format(buf, counter > 0 ? "\n" : " No join messages found.");
 
 	sqlite3_finalize(res);
   
