@@ -92,6 +92,7 @@ add_dependencies(adc utils)
 add_dependencies(network utils)
 
 add_executable(uhub ${PROJECT_SOURCE_DIR}/core/main.c ${uhub_SOURCES} )
+add_executable(test ${CMAKE_SOURCE_DIR}/autotest/test.c ${uhub_SOURCES} )
 
 add_library(mod_example MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_example.c)
 add_library(mod_welcome MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_welcome.c)
@@ -100,6 +101,7 @@ add_library(mod_auth_simple MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_auth_simple
 add_library(mod_chat_history MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_history.c )
 add_library(mod_chat_only MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_only.c)
 add_library(mod_topic MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_topic.c)
+add_library(mod_no_guest_downloads MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_no_guest_downloads.c)
 
 if (SQLITE_SUPPORT)
 	add_library(mod_auth_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_auth_sqlite.c)
@@ -129,15 +131,12 @@ if (SQLITE_SUPPORT)
 		target_link_libraries(mod_patterns sqlite3 pcre utils)
 		set_target_properties(mod_patterns PROPERTIES PREFIX "")
 	endif()
-
-	if (UNIX)
-		target_link_libraries(uhub pthread)
-	endif()
 endif()
 
 
 if(WIN32)
 	target_link_libraries(uhub ws2_32)
+	target_link_libraries(test ws2_32)
 	target_link_libraries(mod_logging ws2_32)
 	target_link_libraries(mod_logging_sqlite ws2_32)
 	target_link_libraries(mod_welcome ws2_32)
@@ -150,29 +149,34 @@ set_target_properties(
 	mod_auth_simple
 	mod_chat_history
 	mod_chat_only
+	mod_no_guest_downloads
 	mod_topic
 	PROPERTIES PREFIX "")
 
 target_link_libraries(uhub ${CMAKE_DL_LIBS} adc network utils)
+target_link_libraries(test ${CMAKE_DL_LIBS} adc network utils)
 target_link_libraries(mod_example utils)
 target_link_libraries(mod_welcome utils)
 target_link_libraries(mod_auth_simple utils)
 target_link_libraries(mod_chat_history utils)
+target_link_libraries(mod_no_guest_downloads utils)
 target_link_libraries(mod_chat_only utils)
 target_link_libraries(mod_logging utils)
 target_link_libraries(mod_topic utils)
-
+target_link_libraries(utils network)
 target_link_libraries(mod_welcome network)
 target_link_libraries(mod_logging network)
 
 if(UNIX)
 	add_library(adcclient STATIC ${adcclient_SOURCES})
 	add_executable(uhub-admin ${PROJECT_SOURCE_DIR}/tools/admin.c)
-	target_link_libraries(uhub-admin adcclient adc network utils)
+	target_link_libraries(uhub-admin adcclient adc network utils pthread)
+	target_link_libraries(uhub pthread)
+	target_link_libraries(test pthread)
 
 	if (ADC_STRESS)
 		add_executable(adcrush ${PROJECT_SOURCE_DIR}/tools/adcrush.c ${adcclient_SOURCES})
-		target_link_libraries(adcrush adcclient adc network utils)
+		target_link_libraries(adcrush adcclient adc network utils pthread)
 	endif()
 endif()
 
@@ -207,6 +211,7 @@ endif()
 
 if(SSL_SUPPORT)
 	target_link_libraries(uhub ${SSL_LIBS})
+	target_link_libraries(test ${SSL_LIBS})
 	if(UNIX)
 		target_link_libraries(uhub-admin ${SSL_LIBS})
 	endif()
@@ -230,7 +235,7 @@ endif()
 
 if (UNIX)
 	install( TARGETS uhub RUNTIME DESTINATION bin )
-	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_chat_history mod_chat_only mod_topic DESTINATION /usr/lib/uhub/ OPTIONAL )
+	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_chat_history mod_chat_only mod_topic mod_no_guest_downloads DESTINATION /usr/lib/uhub/ OPTIONAL )
 
 	if (SQLITE_SUPPORT)
 		install( TARGETS uhub-passwd RUNTIME DESTINATION bin )
