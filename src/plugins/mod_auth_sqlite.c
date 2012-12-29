@@ -937,7 +937,8 @@ static plugin_st check_user_late(struct plugin_handle* plugin, struct plugin_use
 			}
 		}
 	}
-	else
+
+	if (ret != st_deny)
 	{
 		sql_execute(sql, get_acl_callback, found, "SELECT * FROM acl WHERE (nickname='%s' OR cid='%s') AND (expiry > strftime('%%s','NOW') OR expiry=-1) LIMIT 1;", sql_escape_string(user->nick), user->cid);    
 	  
