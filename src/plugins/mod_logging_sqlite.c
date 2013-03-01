@@ -278,7 +278,7 @@ static int command_userlogcleanup(struct plugin_handle* plugin, struct plugin_us
 	
 	int days = arg->data.integer;
 
-	int rc = sql_execute(ldata, null_callback, NULL, "DELETE FROM userlog WHERE time < DATETIME('NOW', 'localtime', '%d days');", days);
+	int rc = sql_execute(ldata, null_callback, NULL, "DELETE FROM userlog WHERE time < DATETIME('NOW', 'localtime', '-%d days');", days);
 	
 	if (rc > 0)
 		cbuf_append_format(buf, "*** %s: Cleaned log entries older than %d days.", cmd->prefix, days);
@@ -293,7 +293,7 @@ static int command_userlogcleanup(struct plugin_handle* plugin, struct plugin_us
 
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
-	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.1", "Logs users entering and leaving the hub to SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.2", "Logs users entering and leaving the hub to SQLite database.");
 
 	struct log_data* ldata;
 
