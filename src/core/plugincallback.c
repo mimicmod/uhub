@@ -206,7 +206,7 @@ static void cbfunc_set_hub_description(struct plugin_handle* plugin, const char*
 void plugin_register_callback_functions(struct plugin_handle* handle)
 {
 	handle->hub.send_chat = cbfunc_send_chat;
-  handle->hub.send_message = cbfunc_send_message;
+	handle->hub.send_message = cbfunc_send_message;
 	handle->hub.send_status_message = cbfunc_send_status;
 	handle->hub.user_disconnect = cbfunc_user_disconnect;
 	handle->hub.command_add = cbfunc_command_add;

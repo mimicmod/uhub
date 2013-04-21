@@ -104,7 +104,19 @@ int route_to_user(struct hub_info* hub, struct hub_user* user, struct adc_messag
 #endif
 
 	if (!user->connection)
-		return 0;
+	{
+		switch (user->type)
+		{
+			case user_type_client:
+				return 0; // No connection - we're about to drop this user.
+			case user_type_bot:
+			{
+				bot_recv_msg handler = (bot_recv_msg) user->ptr;
+				handler(user, msg);
+				return 0;
+			}
+		}
+	}
 
 	uhub_assert(msg->cache && *msg->cache);
 
@@ -147,6 +159,19 @@ int route_to_all(struct hub_info* hub, struct adc_message* command) /* iterate u
 
 	return 0;
 }
+
+int route_to_operators(struct hub_info* hub, struct adc_message* command) /* iterate users */
+{
+	struct hub_user* user = (struct hub_user*) list_get_first(hub->users->list);
+	while (user)
+	{
+		if (user_flag_get(user, flag_opnotify))
+			route_to_user(hub, user, command);
+		user = (struct hub_user*) list_get_next(hub->users->list);
+	}
+	return 0;
+}
+
 
 int route_to_subscribers(struct hub_info* hub, struct adc_message* command) /* iterate users */
 {

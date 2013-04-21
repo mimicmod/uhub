@@ -653,6 +653,7 @@ static struct net_connection* start_listening_socket(const char* bind_addr, uint
 	if (ret == -1)
 	{
 		LOG_ERROR("hub_start_service(): Unable to bind to TCP local address. errno=%d, str=%s", net_error(), net_error_string(net_error()));
+		hub_notify(hub, notify_error, "Unable to bind to network address %s on port %d: %s (%d)", bind_addr, port, net_error_string(net_error()), net_error());
 		net_close(sd);
 		return 0;
 	}
@@ -670,6 +671,60 @@ static struct net_connection* start_listening_socket(const char* bind_addr, uint
 
 	return server;
 }
+
+
+int hub_is_running(struct hub_info* hub)
+{
+	return hub->status == hub_status_running || hub->status == hub_status_restart;
+}
+
+
+void hub_notify(struct hub_info* hub, enum notify_verbosity verbosity, const char* fmt, ...)
+{
+	struct cbuffer* buf;
+	struct adc_message* msg;
+	va_list args;
+	char temp[1024];
+
+	va_start(args, fmt);
+	vsnprintf(temp, sizeof(temp), fmt, args);
+	va_end(args);
+
+	buf = cbuf_create(strlen(temp) + 8);
+
+	switch (verbosity)
+	{
+		case notify_error:
+			cbuf_append(buf, "ERROR: ");
+			LOG_ERROR(temp);
+			break;
+		case notify_warn:
+			cbuf_append(buf, "WARN: ");
+			LOG_WARN(temp);
+			break;
+		case notify_info:
+			cbuf_append(buf, "INFO: ");
+			LOG_INFO(temp);
+			break;
+		case notify_debug:
+			cbuf_append(buf, "DEBUG: ");
+			LOG_DEBUG(temp);
+			break;
+	}
+
+	cbuf_append(buf, temp);
+
+	if (hub_is_running(hub))
+	{
+		msg = adc_msg_construct(ADC_CMD_IMSG, 5 + adc_msg_escape_length(cbuf_get(buf)) + 2);
+		adc_msg_add_argument_string(msg, cbuf_get(buf));
+		route_to_operators(hub, msg);
+		adc_msg_free(msg);
+	}
+
+	cbuf_destroy(buf);
+}
+
 
 struct server_alt_port_data
 {
@@ -750,6 +805,54 @@ static void unload_ssl_certificates(struct hub_info* hub)
 		net_ssl_context_destroy(hub->ctx);
 }
 #endif /* SSL_SUPPORT */
+
+// #ifdef BOT_SUPPORT
+
+static void route_privmsg_to_operators(struct hub_user* bot, sid_t from, const char* escaped_msg, int action)
+{
+	struct hub_info* hub = bot->hub;
+	struct hub_user* user = (struct hub_user*) list_get_first(hub->users->list);
+	while (user)
+	{
+		if (from != user->id.sid && user_flag_get(user, flag_opnotify))
+		{
+			struct adc_message* msg = adc_msg_construct_source_dest(ADC_CMD_DMSG, from, user->id.sid, strlen(escaped_msg) + (action * 4) + 7);
+			adc_msg_add_argument(msg, escaped_msg);
+			adc_msg_add_named_argument(msg, ADC_MSG_FLAG_PRIVATE, sid_to_string(bot->id.sid));
+			if (action) adc_msg_add_named_argument(msg, ADC_MSG_FLAG_ACTION, "0");
+			route_to_user(hub, user, msg);
+			adc_msg_free(msg);
+		}
+		user = (struct hub_user*) list_get_next(hub->users->list);
+	}
+}
+
+/// This receives private messages and transmits them to the connected operators.
+static void hub_bot_op_notify_handle(struct hub_user* bot, struct adc_message* msg)
+{
+	char* chat;
+	LOG_TRACE("Invoked hub_bot_op_notify_handle()");
+	switch (msg->cmd)
+	{
+			case ADC_CMD_EMSG:
+			case ADC_CMD_DMSG:
+				chat = adc_msg_get_argument(msg, 0);
+				LOG_DEBUG("Hub chat: \"%s\"", chat);
+				route_privmsg_to_operators(bot, msg->source, chat, adc_msg_has_named_argument(msg, ADC_MSG_FLAG_ACTION) ? 1 : 0);
+				hub_free(chat);
+				break;
+			default:
+				/* ignore these messages! */
+				break;
+	}
+}
+
+static void hub_bot_op_notify_create(struct hub_info* hub)
+{
+	struct hub_user* opcom = user_create_bot(hub, "Operations", "Hub operators", hub_bot_op_notify_handle);
+	uman_add(hub->users, opcom);
+}
+// #endif
 
 struct hub_info* hub_start_service(struct hub_config* config)
 {
@@ -834,6 +937,8 @@ struct hub_info* hub_start_service(struct hub_config* config)
 
 	// Start the hub command sub-system
 	hub->commands = command_initialize(hub);
+
+	hub_bot_op_notify_create(hub);
 	return hub;
 }
 

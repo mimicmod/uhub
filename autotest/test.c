@@ -770,6 +770,9 @@ int main(int argc, char** argv)
 	exotic_add_test(&handle, &exotic_test_timer_add_5_events_1, "timer_add_5_events_1");
 	exotic_add_test(&handle, &exotic_test_timer_check_5_events_1, "timer_check_5_events_1");
 	exotic_add_test(&handle, &exotic_test_timer_process_5_events_1, "timer_process_5_events_1");
+	exotic_add_test(&handle, &exotic_test_timer_clear_1, "timer_clear_1");
+	exotic_add_test(&handle, &exotic_test_timer_bulk_1, "timer_bulk_1");
+	exotic_add_test(&handle, &exotic_test_timer_bulk_2, "timer_bulk_2");
 	exotic_add_test(&handle, &exotic_test_tokenizer_basic_0, "tokenizer_basic_0");
 	exotic_add_test(&handle, &exotic_test_tokenizer_basic_1, "tokenizer_basic_1");
 	exotic_add_test(&handle, &exotic_test_tokenizer_basic_1a, "tokenizer_basic_1a");
