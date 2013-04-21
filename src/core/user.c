@@ -80,7 +80,7 @@ static const char* generate_bot_cid(struct hub_info* hub, const char* nick)
 	return result;
 }
 
-struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const char* description, bot_recv_msg msg_handler)
+struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const char* description, int botkey, bot_recv_msg msg_handler)
 {
 	struct hub_user* user = NULL;
 	LOG_TRACE("user_create_bot(), hub=%p, nick=\"%s\"", hub, nick);
@@ -103,7 +103,7 @@ struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const c
 	if (user->info)
 	{
 		adc_msg_add_argument(user->info, sid_to_string(user->id.sid));
-		adc_msg_add_named_argument(user->info, ADC_INF_FLAG_CLIENT_TYPE, ADC_CLIENT_TYPE_BOT);
+		adc_msg_add_named_argument(user->info, ADC_INF_FLAG_CLIENT_TYPE, botkey == 1 ? ADC_CLIENT_TYPE_HUBBOT : ADC_CLIENT_TYPE_BOT);
 		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_USER_AGENT, PRODUCT_STRING);
 		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_NICK, nick);
 		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_DESCRIPTION, description);

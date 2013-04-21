@@ -479,6 +479,30 @@
 		]]></example>
 	</option>
 
+	<option name="opchat_nick" type="string" default="Operations">
+		<short>Desired OpChat nickname.</short>
+		<description><![CDATA[
+		OpChat bot will be shown in the userlist with this nickname.
+		]]></description>
+		<since>0.4.1</since>
+	</option>
+
+	<option name="opchat_desc" type="string" default="Hub operators">
+		<short>Desired OpChat description.</short>
+		<description><![CDATA[
+		Sets description of the OpChat bot.
+		]]></description>
+		<since>0.4.1</since>
+	</option>
+
+	<option name="opchat_keys" type="boolean" default="1">
+		<short>If enabled, OpChat bot is shown as an operator in the userlist.</short>
+		<description><![CDATA[
+		If enabled, OpChat bot is shown as an operator in the userlist.
+		]]></description>
+		<since>0.4.1</since>
+	</option>
+
 	<option name="msg_hub_full" type="message" default="Hub is full" >
 		<description><![CDATA[This will be sent if the hub is full]]></description>
 		<since>0.2.0</since>

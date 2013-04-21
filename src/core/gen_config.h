@@ -47,6 +47,9 @@ struct hub_config
 	char* nmdc_only_redirect_addr;         /*<<< A redirect address in case a client connects not using "adc://" or "adcs://" or does not support ADC protocol. (default: "") */
 	char* file_acl;                        /*<<< File containing access control lists (default: "") */
 	char* file_plugins;                    /*<<< Plugin configuration file (default: "") */
+	char* opchat_nick;                     /*<<< Desired OpChat nickname. (default: "Operations") */
+	char* opchat_desc;                     /*<<< Desired OpChat description. (default: "Hub operators") */
+	int   opchat_keys;                     /*<<< If enabled, OpChat bot is shown as an operator in the userlist. (default: 1) */
 	char* msg_hub_full;                    /*<<< "Hub is full" */
 	char* msg_hub_disabled;                /*<<< "Hub is disabled" */
 	char* msg_hub_registered_users_only;   /*<<< "Hub is for registered users only" */

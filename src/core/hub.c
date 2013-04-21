@@ -849,7 +849,7 @@ static void hub_bot_op_notify_handle(struct hub_user* bot, struct adc_message* m
 
 static void hub_bot_op_notify_create(struct hub_info* hub)
 {
-	struct hub_user* opcom = user_create_bot(hub, "Operations", "Hub operators", hub_bot_op_notify_handle);
+	struct hub_user* opcom = user_create_bot(hub, hub->config->opchat_nick, hub->config->opchat_desc, hub->config->opchat_keys, hub_bot_op_notify_handle);
 	uman_add(hub->users, opcom);
 }
 // #endif

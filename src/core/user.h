@@ -148,7 +148,7 @@ struct hub_user
  * @return User object or NULL if not enough memory is available.
  */
 extern struct hub_user* user_create(struct hub_info* hub, struct net_connection* con, struct ip_addr_encap* addr);
-extern struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const char* description, bot_recv_msg msg_handler);
+extern struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const char* description, int botkey, bot_recv_msg msg_handler);
 
 /**
  * Delete a user.
