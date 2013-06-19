@@ -660,6 +660,8 @@ static int command_usercleanup(struct plugin_handle* plugin, struct plugin_user*
 
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
+	
+	sql_execute(sql, null_callback, NULL, "VACUUM;");
 
 	return 0;
 }
@@ -1514,10 +1516,12 @@ static int command_aclcleanup(struct plugin_handle* plugin, struct plugin_user* 
 	{
 		cbuf_append_format(buf, "*** %s: Cleaned ACL table.", cmd->prefix);
 	}
-	
+
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
-	
+
+	sql_execute(sql, null_callback, NULL, "VACUUM;");
+
 	return 0;
 }
 

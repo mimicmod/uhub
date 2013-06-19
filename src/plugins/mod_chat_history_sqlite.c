@@ -227,6 +227,8 @@ static int command_historycleanup(struct plugin_handle* plugin, struct plugin_us
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
 
+	sql_execute(sql, null_callback, NULL, "VACUUM;");
+
 	return 0;
 }
 
