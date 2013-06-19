@@ -34,9 +34,21 @@ static void set_error_message(struct plugin_handle* plugin, const char* msg)
 	plugin->error_msg = msg;
 }
 
+enum reg_flags
+{
+	register_self	= 0x01, ///<<< "Enable self-registration"
+	notify_ops	= 0x02, ///<<< "Notify ops about success / Send application for registration"
+	notify_opchat	= 0x04 ///<<< "Not yet implemented"
+};
+
+int reg_flag_get(int flags, enum reg_flags flag)
+{
+	return flags & flag;
+}
+
 struct sql_data
 {
-	int register_self;
+	int register_flags;
 	sqlite3* db;
 	struct plugin_command_handle* command_register_handle; ///<<< "A handle to the !register command."
 	struct plugin_command_handle* command_password_handle; ///<<< "A handle to the !password command."
@@ -131,6 +143,8 @@ static struct sql_data* parse_config(const char* line, struct plugin_handle* plu
 	if (!data)
 		return 0;
 
+	data->register_flags = 1;
+
 	while (token)
 	{
 		struct cfg_settings* setting = cfg_settings_split(token);
@@ -157,10 +171,9 @@ static struct sql_data* parse_config(const char* line, struct plugin_handle* plu
 				}
 			}
 		}
-		else if (strcmp(cfg_settings_get_key(setting), "register_self") == 0)
+		else if (strcmp(cfg_settings_get_key(setting), "register_flags") == 0)
 		{
-			if (!string_to_boolean(cfg_settings_get_value(setting), &data->register_self))
-				data->register_self = 1;
+			data->register_flags = uhub_atoi(cfg_settings_get_value(setting));
 		}
 		else
 		{
@@ -383,7 +396,9 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
 	data.nickname[MAX_NICK_LEN] = '\0';
 	data.password[MAX_PASS_LEN] = '\0';
 	data.credentials = auth_cred_user;
-	
+	enum reg_flags regflag = register_self;
+	enum reg_flags opnotify = notify_ops;
+
 	if (user->credentials >= auth_cred_user)
 	{
 	  cbuf_append_format(buf, "*** %s: You are already registered.", cmd->prefix);
@@ -391,18 +406,26 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
 	}
 	else
 	{
-		if (sql->register_self == 0)
+		if (!reg_flag_get(sql->register_flags, regflag) && reg_flag_get(sql->register_flags, opnotify))
 		{
 			cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
 			plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
 			plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
 		}    
-		else
+		else if (reg_flag_get(sql->register_flags, regflag))
 		{
 			if (register_user(plugin, &data) == st_allow)
+			{
 				cbuf_append_format(buf, "*** %s: User \"%s\" registered.", cmd->prefix, user->nick);
+				if (reg_flag_get(sql->register_flags, opnotify))
+					plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
+			}
 			else
+			{
 				cbuf_append_format(buf, "*** %s: Unable to register user \"%s\".", cmd->prefix, user->nick);
+				if (reg_flag_get(sql->register_flags, opnotify))
+					plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
+			}
 			plugin->hub.send_message(plugin, user, cbuf_get(buf));
 		}
 	}
@@ -1683,9 +1706,12 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	if (!sql)
 		return -1;
 
-	sql->command_register_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_register_handle, plugin, "register", "p", auth_cred_guest, &command_register, "Register your username.");
-	plugin->hub.command_add(plugin, sql->command_register_handle);
+	if (sql->register_flags > 0)
+	{
+		sql->command_register_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+		PLUGIN_COMMAND_INITIALIZE(sql->command_register_handle, plugin, "register", "p", auth_cred_guest, &command_register, "Register your username.");
+		plugin->hub.command_add(plugin, sql->command_register_handle);
+	}
 
 	sql->command_password_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
 	PLUGIN_COMMAND_INITIALIZE(sql->command_password_handle, plugin, "password", "p", auth_cred_user, &command_password, "Change your own password.");
