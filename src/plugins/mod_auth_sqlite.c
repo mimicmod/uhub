@@ -1826,7 +1826,10 @@ int plugin_unregister(struct plugin_handle* plugin)
 
 	if (sql)
 	{
-		plugin->hub.command_del(plugin, sql->command_register_handle);
+		if (sql->register_flags > 0)
+		{
+			plugin->hub.command_del(plugin, sql->command_register_handle);
+		}
 		plugin->hub.command_del(plugin, sql->command_password_handle);
 		plugin->hub.command_del(plugin, sql->command_useradd_handle);
 		plugin->hub.command_del(plugin, sql->command_userdel_handle);
@@ -1851,7 +1854,7 @@ int plugin_unregister(struct plugin_handle* plugin)
 		plugin->hub.command_del(plugin, sql->command_usercleanup_handle);
 		plugin->hub.command_del(plugin, sql->command_aclcleanup_handle);
 		plugin->hub.command_del(plugin, sql->command_userlist_handle);
-    
+
 		hub_free(sql->command_register_handle);
 		hub_free(sql->command_password_handle);
 		hub_free(sql->command_useradd_handle);
