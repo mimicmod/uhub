@@ -396,8 +396,6 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
 	data.nickname[MAX_NICK_LEN] = '\0';
 	data.password[MAX_PASS_LEN] = '\0';
 	data.credentials = auth_cred_user;
-	enum reg_flags regflag = register_self;
-	enum reg_flags opnotify = notify_ops;
 
 	if (user->credentials >= auth_cred_user)
 	{
@@ -406,24 +404,24 @@ static int command_register(struct plugin_handle* plugin, struct plugin_user* us
 	}
 	else
 	{
-		if (!reg_flag_get(sql->register_flags, regflag) && reg_flag_get(sql->register_flags, opnotify))
+		if (!reg_flag_get(sql->register_flags, register_self) && reg_flag_get(sql->register_flags, notify_ops))
 		{
 			cbuf_append_format(buf, "*** %s: Nick=\"%s\" password=\"%s\"", cmd->prefix, data.nickname, data.password);
 			plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
 			plugin->hub.send_message(plugin, user, "*** register: Your request was sent to our operators.");
 		}    
-		else if (reg_flag_get(sql->register_flags, regflag))
+		else if (reg_flag_get(sql->register_flags, register_self))
 		{
 			if (register_user(plugin, &data) == st_allow)
 			{
 				cbuf_append_format(buf, "*** %s: User \"%s\" registered.", cmd->prefix, user->nick);
-				if (reg_flag_get(sql->register_flags, opnotify))
+				if (reg_flag_get(sql->register_flags, notify_ops))
 					plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
 			}
 			else
 			{
 				cbuf_append_format(buf, "*** %s: Unable to register user \"%s\".", cmd->prefix, user->nick);
-				if (reg_flag_get(sql->register_flags, opnotify))
+				if (reg_flag_get(sql->register_flags, notify_ops))
 					plugin->hub.send_chat(plugin, auth_cred_operator, auth_cred_admin, cbuf_get(buf));
 			}
 			plugin->hub.send_message(plugin, user, cbuf_get(buf));
