@@ -288,12 +288,14 @@ static int command_userlogcleanup(struct plugin_handle* plugin, struct plugin_us
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
 
+	sql_execute(ldata, null_callback, NULL, "VACUUM;");
+
 	return 0;
 }
 
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
-	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.2", "Logs users entering and leaving the hub to SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.3", "Logs users entering and leaving the hub to SQLite database.");
 
 	struct log_data* ldata;
 
