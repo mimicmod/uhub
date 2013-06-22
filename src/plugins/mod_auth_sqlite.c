@@ -970,8 +970,11 @@ static plugin_st check_user_late(struct plugin_handle* plugin, struct plugin_use
 		if (matches)
 		{
 			rule = (struct acl_info*) list_get_first(found);
-			memcpy(data, rule, sizeof(struct acl_info));
-			ret = st_deny;
+			if(!(rule->flags & mute_user) && !(rule->flags & nopm_user))
+			{
+				memcpy(data, rule, sizeof(struct acl_info));
+				ret = st_deny;
+			}
 		}
 	  
 		list_clear(found, &hub_free);
