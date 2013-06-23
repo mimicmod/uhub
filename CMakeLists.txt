@@ -110,9 +110,8 @@ add_library(mod_welcome MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_welcome.c)
 add_library(mod_logging MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_logging.c ${PROJECT_SOURCE_DIR}/adc/sid.c)
 add_library(mod_auth_simple MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_auth_simple.c )
 add_library(mod_chat_history MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_history.c )
-add_library(mod_chat_only MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_only.c)
+add_library(mod_restrict MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_restrict.c)
 add_library(mod_topic MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_topic.c)
-add_library(mod_no_guest_downloads MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_no_guest_downloads.c)
 add_library(mod_auth_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_auth_sqlite.c)
 add_library(mod_chat_history_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_chat_history_sqlite.c)
 add_library(mod_logging_sqlite MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_logging_sqlite.c ${PROJECT_SOURCE_DIR}/adc/sid.c)
@@ -134,8 +133,7 @@ set_target_properties(
 	mod_auth_simple
 	mod_auth_sqlite
 	mod_chat_history
-	mod_chat_only
-	mod_no_guest_downloads
+	mod_restrict
 	mod_topic
 	mod_chat_history_sqlite
 	mod_logging_sqlite
@@ -161,8 +159,7 @@ target_link_libraries(mod_chat_history_sqlite ${SQLITE3_LIBRARIES} utils)
 target_link_libraries(mod_extras ${SQLITE3_LIBRARIES} utils)
 target_link_libraries(mod_joins ${SQLITE3_LIBRARIES} utils network)
 target_link_libraries(mod_chat_history utils)
-target_link_libraries(mod_no_guest_downloads utils)
-target_link_libraries(mod_chat_only utils)
+target_link_libraries(mod_restrict utils)
 target_link_libraries(mod_logging utils)
 target_link_libraries(mod_topic utils)
 target_link_libraries(utils network)
@@ -251,7 +248,7 @@ endif()
 
 if (UNIX)
 	install( TARGETS uhub uhub-passwd RUNTIME DESTINATION bin )
-	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_auth_sqlite mod_chat_history mod_chat_only mod_topic mod_no_guest_downloads mod_chat_history_sqlite mod_logging_sqlite mod_extras mod_joins DESTINATION /usr/lib/uhub/ OPTIONAL )
+	install( TARGETS mod_example mod_welcome mod_logging mod_auth_simple mod_auth_sqlite mod_chat_history mod_restrict mod_topic mod_chat_history_sqlite mod_logging_sqlite mod_extras mod_joins DESTINATION /usr/lib/uhub/ OPTIONAL )
 
 	if (PCRE_SUPPORT)
 		install( TARGETS mod_patterns DESTINATION /usr/lib/uhub/ OPTIONAL )
