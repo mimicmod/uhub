@@ -236,8 +236,15 @@ plugin_st on_private_msg(struct plugin_handle* plugin, struct plugin_user* from,
 {
 	struct restrict_data* data = (struct restrict_data*) plugin->ptr;
 	struct user_info* info = get_user_info(data, from->sid);
-	plugin_st ret = st_default;
+	struct user_info* target = get_user_info(data, to->sid);
+	
+	if (from->credentials >= data->min_cred_pm && from->credentials >= auth_cred_operator && to->credentials < auth_cred_operator)
+	{
+		target->warnings |= WARN_OP_REVPM; // user is contacted by an op first, lets allow him to answer;
+		return st_allow;
+	}
 
+	// user is either allowed to contact op or was contacted by op first
 	if ((from->credentials < data->min_cred_pm_op || !(info->warnings & WARN_OP_REVPM)) && to->credentials >= auth_cred_operator)
 	{
 		if (!(info->warnings & WARN_OP_PM))
@@ -248,6 +255,7 @@ plugin_st on_private_msg(struct plugin_handle* plugin, struct plugin_user* from,
 		return st_deny;
 	}
 
+	// this should be an ordinary PM
 	if (from->credentials < data->min_cred_pm && to->credentials < auth_cred_operator)
 	{
 		if (!(info->warnings & WARN_PM))
