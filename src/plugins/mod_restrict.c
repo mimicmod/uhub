@@ -240,23 +240,27 @@ plugin_st on_private_msg(struct plugin_handle* plugin, struct plugin_user* from,
 	
 	if (from->credentials >= data->min_cred_pm && from->credentials >= auth_cred_operator && to->credentials < auth_cred_operator)
 	{
-		target->warnings |= WARN_OP_REVPM; // user is contacted by an op first, lets allow him to answer;
+		target->warnings |= WARN_OP_REVPM; // user is contacted by an op first, lets mark him as allowed to answer;
 		return st_allow;
 	}
 
-	// user is either allowed to contact op or was contacted by op first
-	if ((from->credentials < data->min_cred_pm_op || !(info->warnings & WARN_OP_REVPM)) && to->credentials >= auth_cred_operator)
+	if (to->credentials >= auth_cred_operator) // recipient is op
 	{
-		if (!(info->warnings & WARN_OP_PM))
+		if (from->credentials >= data->min_cred_pm_op) // sender is allowed to contact ops
+			return st_allow;
+
+		if (!(info->warnings & WARN_OP_REVPM)) // sender is not marked as contacted by op in the past
 		{
-			plugin->hub.send_status_message(plugin, from, 000, "You are not allowed to send private messages to operators on this hub.");
-			info->warnings |= WARN_OP_PM;
+			if (!(info->warnings & WARN_OP_PM))
+			{
+				plugin->hub.send_status_message(plugin, from, 000, "You are not allowed to send private messages to operators on this hub.");
+				info->warnings |= WARN_OP_PM;
+			}
+			return st_deny;
 		}
-		return st_deny;
 	}
 
-	// this should be an ordinary PM
-	if (from->credentials < data->min_cred_pm && to->credentials < auth_cred_operator)
+	if (from->credentials < data->min_cred_pm && to->credentials < auth_cred_operator) // user is not allowed to send an ordinary PM (recipient is not op)
 	{
 		if (!(info->warnings & WARN_PM))
 		{
@@ -265,6 +269,7 @@ plugin_st on_private_msg(struct plugin_handle* plugin, struct plugin_user* from,
 		}
 		return st_deny;
 	}
+
 	return st_default;
 }
 
