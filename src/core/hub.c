@@ -117,14 +117,26 @@ int hub_handle_message(struct hub_info* hub, struct hub_user* u, const char* lin
 
 			case ADC_CMD_DRCM:
 				cmd->priority = -1;
-				if (plugin_handle_revconnect(hub, u, uman_get_user_by_sid(hub->users, cmd->target)) == st_deny)
+				struct hub_user* t = uman_get_user_by_sid(hub->users, cmd->target);
+				if (!t)
+				{
+					hub_free(t);
+					break;
+				}
+				if (plugin_handle_revconnect(hub, u, t) == st_deny)
 					break;
 				CHECK_FLOOD(connect, 1);
 				ROUTE_MSG;
 
 			case ADC_CMD_DCTM:
 				cmd->priority = -1;
-				if (plugin_handle_connect(hub, u, uman_get_user_by_sid(hub->users, cmd->target)) == st_deny)
+				struct hub_user* to = uman_get_user_by_sid(hub->users, cmd->target);
+				if (!to)
+				{
+					hub_free(to);
+					break;
+				}
+				if (plugin_handle_connect(hub, u, to) == st_deny)
 					break;
 				CHECK_FLOOD(connect, 1);
 				ROUTE_MSG;
