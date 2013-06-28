@@ -1015,14 +1015,14 @@ void hub_plugins_unload(struct hub_info* hub)
 void hub_set_variables(struct hub_info* hub, struct acl_handle* acl)
 {
 	char* tmp;
-	char* server = adc_msg_escape(PRODUCT_STRING); /* FIXME: OOM */
 
 	hub->acl = acl;
 	hub->command_info = adc_msg_construct(ADC_CMD_IINF, 15);
 	if (hub->command_info)
 	{
 		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_CLIENT_TYPE, ADC_CLIENT_TYPE_HUB);
-		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT, server);
+		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT, PRODUCT);
+		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT_VERSION, GIT_VERSION);
 
 		tmp = adc_msg_escape(hub->config->hub_name);
 		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_NICK, tmp);
@@ -1039,7 +1039,7 @@ void hub_set_variables(struct hub_info* hub, struct acl_handle* acl)
 		adc_msg_add_argument(hub->command_support, ADC_PROTO_SUPPORT);
 	}
 
-	hub->command_banner = adc_msg_construct(ADC_CMD_ISTA, 100 + strlen(server));
+	hub->command_banner = adc_msg_construct(ADC_CMD_ISTA, 100 + strlen(PRODUCT_STRING));
 	if (hub->command_banner)
 	{
 		if (hub->config->show_banner_sys_info)
@@ -1059,7 +1059,6 @@ void hub_set_variables(struct hub_info* hub, struct acl_handle* acl)
 	else
 
 	hub->status = (hub->config->hub_enabled ? hub_status_running : hub_status_disabled);
-	hub_free(server);
 }
 
 

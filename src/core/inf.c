@@ -367,70 +367,76 @@ static int check_logged_in(struct hub_info* hub, struct hub_user* user, struct a
 static int check_user_agent(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
 {
 	char* ua_encoded = 0;
+	char* ua_ver_encoded = 0;
 	char* ua = 0;
+	char* ua_ver = 0;
+	size_t offset = 0;
+	size_t len = 0;
+	size_t max = MAX_UA_LEN;
 
-	/* Get client user agent version */
+	/* Get client user agent */
 	ua_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT);
+
+	/* Get client user agent version*/
+	ua_ver_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_VERSION);
+
 	if (ua_encoded)
 	{
 		ua = adc_msg_unescape(ua_encoded);
 		if (ua)
 		{
-			memcpy(user->id.user_agent, ua, MIN(strlen(ua), MAX_UA_LEN));
+			len = strlen(ua);
+			memcpy(user->id.user_agent, ua, MIN(len, max));
+			offset += len;
 			hub_free(ua);
 		}
 	}
+
+	if (ua_ver_encoded)
+	{
+		ua_ver = adc_msg_unescape(ua_ver_encoded);
+		if (ua_ver)
+		{
+			if (offset)
+			{
+				user->id.user_agent[offset++] = ' ';
+				max = MAX_UA_LEN - offset;
+			}
+			len = strlen(ua_ver);
+			memcpy(user->id.user_agent + offset, ua_ver, MIN(len, max));
+			hub_free(ua_ver);
+		}
+	}
 	hub_free(ua_encoded);
+	hub_free(ua_ver_encoded);
 	return 0;
 }
-
-/*
-static int check_acl(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
-{
-	if (acl_is_cid_banned(hub->acl, user->id.cid))
-	{
-		return status_msg_ban_permanently;
-	}
-
-	if (acl_is_user_banned(hub->acl, user->id.nick))
-	{
-		return status_msg_ban_permanently;
-	}
-
-	if (acl_is_user_denied(hub->acl, user->id.nick))
-	{
-		return status_msg_inf_error_nick_restricted;
-	}
-
-	return 0;
-}
-*/
 
 int acl_flag_get(struct acl_info* info, enum acl_flags flag)
 {
-    return info->flags & flag;
+	return info->flags & flag;
 }
 
 static int check_acl(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
 {
-  int ret = 0;
+	int ret = 0;
 	struct acl_info* info = 0;
 	info = (struct acl_info*) hub_malloc(sizeof(struct acl_info));
 	if (plugin_check_user_late(hub, user, info) == st_deny)
 	{
-	  if (info->expiry >= 0)
-      ret = status_msg_ban_temporarily;
-    else
-    {
-      if (acl_flag_get(info, deny_nickname))
-        ret = status_msg_inf_error_nick_restricted;
-      else
-        ret = status_msg_ban_permanently;
-    }
+		if (info->expiry >= 0)
+			ret = status_msg_ban_temporarily;
+		else
+		{
+			if (acl_flag_get(info, deny_nickname))
+				ret = status_msg_inf_error_nick_restricted;
+			else
+				ret = status_msg_ban_permanently;
+		}
 	}
-	
+
 	hub_free(info);
-	
+
 	return ret;
 }
 
