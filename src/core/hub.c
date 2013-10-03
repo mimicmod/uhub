@@ -337,12 +337,6 @@ int hub_handle_chat_message(struct hub_info* hub, struct hub_user* u, struct adc
 		}
 	}
 
-	/* FIXME: Plugin should do this! */
-	if (relay && (((hub->config->chat_is_privileged && !user_is_protected(u)) || (user_flag_get(u, flag_muted))) && broadcast))
-	{
-		relay = 0;
-	}
-
 	if (relay)
 	{
 		plugin_st status = st_default;
