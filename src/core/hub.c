@@ -110,7 +110,13 @@ int hub_handle_message(struct hub_info* hub, struct hub_user* u, const char* lin
 
 			case ADC_CMD_DRES:
 				cmd->priority = -1;
-				if (plugin_handle_search_result(hub, u, uman_get_user_by_sid(hub->users, cmd->target), cmd->cache) == st_deny)
+				struct hub_user* ta = uman_get_user_by_sid(hub->users, cmd->target);
+				if (!ta)
+				{
+					hub_free(ta);
+					break;
+				}
+				if (plugin_handle_search_result(hub, u, ta, cmd->cache) == st_deny)
 					break;
 				/* CHECK_FLOOD(search, 0); */
 				ROUTE_MSG;
