@@ -154,7 +154,7 @@ static int check_column(const char* col)
 
 	for (; i < 7;i++)
 	{
-		if(strcmp(col, columns[i]) == 0)
+		if(strcmp(columns[i], col) == 0)
 		{
 			found++;
 			break;
@@ -248,8 +248,8 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 {
 	struct log_data* ldata = (struct log_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
-	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
 	struct plugin_command_arg_data* arg3 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
 	int lines = arg1 ? arg1->data.integer : 20;
 	char* column = arg2 ? arg2->data.string : "";
