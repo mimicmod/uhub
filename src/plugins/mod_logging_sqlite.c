@@ -141,7 +141,7 @@ static const char* sql_escape_string(const char* str)
 }
 static int check_column(const char* col)
 {
-	char* columns[7];
+	char* columns[8];
 	int i = 0;
 	columns[0] = "nick";
 	columns[1] = "cid";
@@ -150,9 +150,10 @@ static int check_column(const char* col)
 	columns[4] = "useragent";
 	columns[5] = "message";
 	columns[6] = "time";
+	columns[7] = "all";
 	int found = 0;
 
-	for (; i < 7;i++)
+	for (; i < 8;i++)
 	{
 		if(strcmp(columns[i], col) == 0)
 		{
@@ -265,33 +266,30 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 	if (lines > 200)
 		lines = 200;
 
-	if (search_len)
+	if (search_len && column_len)
 	{
-		if (column_len)
+		if(!check_column(column))
 		{
-			if(!check_column(column))
-			{
-				cbuf_append_format(buf, "*** %s: Invalid column. Valid columns are nick, cid, addr, credentials, useragent, message, time.\n", cmd->prefix);
-				sqlite3_finalize(res);
-				plugin->hub.send_message(plugin, user, cbuf_get(buf));
-				cbuf_destroy(buf);
-				return 0;
-			}
-			if (strcmp(column, "message") == 0)
-			{
-				sprintf(query, "SELECT * FROM userlog WHERE message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, lines);
-				cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"message\".\n", cmd->prefix, search);
-			}
-			else
-			{
-				sprintf(query, "SELECT * FROM userlog WHERE %s='%s' ORDER BY time DESC LIMIT %d;", column, search, lines);
-				cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"%s\".\n", cmd->prefix, search, column);
-			}
+			cbuf_append_format(buf, "*** %s: Invalid column. Valid columns are: nick, cid, addr, credentials, useragent, message, time, all.\n", cmd->prefix);
+			plugin->hub.send_message(plugin, user, cbuf_get(buf));
+			cbuf_destroy(buf);
+			return 0;
 		}
-		else 
+
+		if (strcmp(column, "message") == 0)
+		{
+			sprintf(query, "SELECT * FROM userlog WHERE message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, lines);
+			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"message\".\n", cmd->prefix, search);
+		}
+		else if (strcmp(column, "all") == 0)
 		{
 			sprintf(query, "SELECT * FROM userlog WHERE nick='%s' OR cid='%s' OR credentials='%s' OR useragent='%s' OR addr='%s' OR message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, search, search, search, search, search, lines);
-			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in all columns.\n", cmd->prefix, search);
+			cbuf_append_format(buf, "*** %s: Search_ing for \"%s\" in all columns.\n", cmd->prefix, search);
+		}
+		else
+		{
+			sprintf(query, "SELECT * FROM userlog WHERE %s='%s' ORDER BY time DESC LIMIT %d;", column, search, lines);
+			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"%s\".\n", cmd->prefix, search, column);
 		}
 	}
 	else
