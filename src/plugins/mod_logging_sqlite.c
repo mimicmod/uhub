@@ -346,7 +346,7 @@ static int command_userlogcleanup(struct plugin_handle* plugin, struct plugin_us
 
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
-	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.3", "Logs users entering and leaving the hub to SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.4", "Logs users entering and leaving the hub to SQLite database.");
 
 	struct log_data* ldata;
 
@@ -361,7 +361,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
 
 	ldata->command_userlog_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "m?N?m", auth_cred_operator, &command_userlog, "Search in userlog for a value.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?m?m", auth_cred_operator, &command_userlog, "Search in userlog for a value.");
 	plugin->hub.command_add(plugin, ldata->command_userlog_handle);
 
 	ldata->command_userlogcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
@@ -371,7 +371,6 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->ptr = ldata;
 
 	create_tables(plugin);
-	sql_execute(ldata, null_callback, NULL, "VACUUM;");
 
 	return 0;
 }
