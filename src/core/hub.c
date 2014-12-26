@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ struct hub_info* g_hub = 0;
 
 /* FIXME: Flood control should be done in a plugin! */
 #define CHECK_FLOOD(TYPE, WARN) \
-	if (flood_control_check(&u->flood_ ## TYPE , hub->config->flood_ctl_  ## TYPE, hub->config->flood_ctl_interval, net_get_time())) \
+	if (flood_control_check(&u->flood_ ## TYPE , hub->config->flood_ctl_  ## TYPE, hub->config->flood_ctl_interval, net_get_time()) &&  !auth_cred_is_unrestricted(u->credentials)) \
 	{ \
 		if (WARN) \
 		{ \
@@ -798,7 +798,11 @@ static int load_ssl_certificates(struct hub_info* hub, struct hub_config* config
 {
 	if (config->tls_enable)
 	{
-		hub->ctx = net_ssl_context_create();
+		hub->ctx = net_ssl_context_create(config->tls_version, config->tls_ciphersuite);
+
+		if (!hub->ctx)
+		  return 0;
+
 		if (ssl_load_certificate(hub->ctx, config->tls_certificate) &&
 			ssl_load_private_key(hub->ctx, config->tls_private_key) &&
 			ssl_check_private_key(hub->ctx))
@@ -1021,7 +1025,7 @@ void hub_set_variables(struct hub_info* hub, struct acl_handle* acl)
 	if (hub->command_info)
 	{
 		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_CLIENT_TYPE, ADC_CLIENT_TYPE_HUB);
-		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT, PRODUCT);
+		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT_PRODUCT, PRODUCT);
 		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_USER_AGENT_VERSION, GIT_VERSION);
 
 		tmp = adc_msg_escape(hub->config->hub_name);
@@ -1439,4 +1443,3 @@ void hub_logout_log(struct hub_info* hub, struct hub_user* user)
 		list_remove_first(hub->logout_info, hub_free);
 	}
 }
-

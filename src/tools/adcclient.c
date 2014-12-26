@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,18 @@
 
 // #define ADCC_DEBUG
 // #define ADC_CLIENT_DEBUG_PROTO
+
+struct ADC_client_global
+{
+	size_t references;
+#ifdef SSL_SUPPORT
+	struct ssl_context_handle* ctx;
+#endif
+};
+
+static struct ADC_client_global* g_adc_client = NULL;
+
+
 enum ADC_client_state
 {
 	ps_none, /* Not connected */
@@ -178,7 +190,16 @@ static void event_callback(struct net_connection* con, int events, void *arg)
 				return;
 			}
 
-			ADC_client_on_connected_ssl(client);
+			if (events == NET_EVENT_ERROR)
+			{
+				ADC_client_on_disconnected(client);
+				client->callback(client, ADC_CLIENT_DISCONNECTED, 0);
+				return;
+			}
+			else
+			{
+				ADC_client_on_connected_ssl(client);
+			}
 			break;
 #endif
 
@@ -508,7 +529,8 @@ void ADC_client_send_info(struct ADC_client* client)
 		adc_msg_add_named_argument_string(client->info, ADC_INF_FLAG_DESCRIPTION, client->desc);
 	}
 
-	adc_msg_add_named_argument_string(client->info, ADC_INF_FLAG_USER_AGENT, PRODUCT " " VERSION);
+	adc_msg_add_named_argument_string(client->info, ADC_INF_FLAG_USER_AGENT_PRODUCT, PRODUCT);
+	adc_msg_add_named_argument_string(client->info, ADC_INF_FLAG_USER_AGENT_VERSION, VERSION);
 	adc_msg_add_named_argument_int(client->info, ADC_INF_FLAG_UPLOAD_SLOTS, 0);
 	adc_msg_add_named_argument_int(client->info, ADC_INF_FLAG_SHARED_SIZE, 0);
 	adc_msg_add_named_argument_int(client->info, ADC_INF_FLAG_SHARED_FILES, 0);
@@ -540,6 +562,17 @@ struct ADC_client* ADC_client_create(const char* nickname, const char* descripti
 	client->recv_queue = ioq_recv_create();
 
 	client->ptr = ptr;
+
+	if (!g_adc_client)
+	{
+		g_adc_client = (struct ADC_client_global*) hub_malloc_zero(sizeof(struct ADC_client_global));
+#ifdef SSL_SUPPORT
+		g_adc_client->ctx = net_ssl_context_create("1.2", "HIGH");
+
+#endif
+	}
+	g_adc_client->references++;
+
 	return client;
 }
 
@@ -555,6 +588,20 @@ void ADC_client_destroy(struct ADC_client* client)
 	hub_free(client->desc);
 	hub_free(client->address.hostname);
 	hub_free(client);
+
+	if (g_adc_client && g_adc_client->references > 0)
+	{
+		g_adc_client->references--;
+		if (!g_adc_client->references)
+		{
+#ifdef SSL_SUPPORT
+			net_ssl_context_destroy(g_adc_client->ctx);
+			g_adc_client->ctx = NULL;
+#endif
+			hub_free(g_adc_client);
+			g_adc_client = NULL;
+		}
+	}
 }
 
 static void connect_callback(struct net_connect_handle* handle, enum net_connect_status status, struct net_connection* con, void* ptr)
@@ -600,6 +647,17 @@ int ADC_client_connect(struct ADC_client* client, const char* address)
 	return 1;
 }
 
+static void ADC_client_send_handshake(struct ADC_client* client)
+{
+	ADC_TRACE;
+	struct adc_message* handshake = adc_msg_create(ADC_HANDSHAKE);
+
+	client->callback(client, ADC_CLIENT_CONNECTED, 0);
+	net_con_update(client->con, NET_EVENT_READ);
+	ADC_client_send(client, handshake);
+	ADC_client_set_state(client, ps_protocol);
+	adc_msg_free(handshake);
+}
 
 static void ADC_client_on_connected(struct ADC_client* client)
 {
@@ -610,32 +668,27 @@ static void ADC_client_on_connected(struct ADC_client* client)
 		net_con_update(client->con, NET_EVENT_READ | NET_EVENT_WRITE);
 		client->callback(client, ADC_CLIENT_SSL_HANDSHAKE, 0);
 		ADC_client_set_state(client, ps_conn_ssl);
-
-		net_con_ssl_handshake(client->con, net_con_ssl_mode_client, NULL);
+		net_con_ssl_handshake(client->con, net_con_ssl_mode_client, g_adc_client->ctx);
 	}
 	else
 #endif
-	{
-		struct adc_message* handshake = adc_msg_create(ADC_HANDSHAKE);
-		net_con_update(client->con, NET_EVENT_READ);
-		client->callback(client, ADC_CLIENT_CONNECTED, 0);
-		ADC_client_send(client, handshake);
-		ADC_client_set_state(client, ps_protocol);
-		adc_msg_free(handshake);
-	}
+	ADC_client_send_handshake(client);
+	
 }
 
 #ifdef SSL_SUPPORT
 static void ADC_client_on_connected_ssl(struct ADC_client* client)
 {
 	ADC_TRACE;
-	struct adc_message* handshake = adc_msg_create(ADC_HANDSHAKE);
-	client->callback(client, ADC_CLIENT_SSL_OK, 0);
-	client->callback(client, ADC_CLIENT_CONNECTED, 0);
-	net_con_update(client->con, NET_EVENT_READ);
-	ADC_client_send(client, handshake);
-	ADC_client_set_state(client, ps_protocol);
-	adc_msg_free(handshake);
+	struct ADC_client_callback_data data;
+	struct ADC_client_tls_info tls_info;
+	data.tls_info = &tls_info;
+
+	tls_info.version = net_ssl_get_tls_version(client->con);
+	tls_info.cipher = net_ssl_get_tls_cipher(client->con);
+
+	client->callback(client, ADC_CLIENT_SSL_OK, &data);
+	ADC_client_send_handshake(client);
 }
 #endif
 

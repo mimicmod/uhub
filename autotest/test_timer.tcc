@@ -118,27 +118,8 @@ EXO_TEST(timer_process_5_events_1,{
 	return timeout_queue_process(g_queue, g_now) == g_triggered;
 });
 
-EXO_TEST(timer_clear_1,{
-	size_t n;
-	for (n = 0; n < MAX_EVENTS; n++)
-		timeout_queue_remove(g_queue, &g_events[n]);
-	return timeout_queue_get_next_timeout(g_queue, g_now) == g_max;
+EXO_TEST(timer_shutdown,{
+	timeout_queue_shutdown(g_queue);
+	hub_free(g_queue);
+	return 1;
 });
-
-EXO_TEST(timer_bulk_1,{
-	size_t n;
-	g_now = 10;
-	for (n = 0; n < MAX_EVENTS; n++)
-	{
-		timeout_queue_insert(g_queue, &g_events[0], 0);
-	}
-	return timeout_queue_process(g_queue, g_now) == 10;
-});
-
-EXO_TEST(timer_bulk_2,{
-	g_now = 110;
-	return timeout_queue_process(g_queue, g_now) == 90;
-});
-
-
-

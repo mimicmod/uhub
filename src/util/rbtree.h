@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,8 +62,8 @@ struct rb_tree
 extern struct rb_tree* rb_tree_create(rb_tree_compare compare, rb_tree_alloc alloc, rb_tree_free dealloc);
 
 /**
- * Deletes the tree and all the nodes.
- * But not the content inside the nodes.
+ * Delete the tree.
+ * Assumes that the tree is empty.
  */
 extern void rb_tree_destroy(struct rb_tree*);
 

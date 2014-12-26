@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -117,6 +117,7 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 	char* token = NULL;
 	char* tmp = NULL;
 	size_t size = 0;
+	size_t offset = 0;
 	struct hub_command_arg_data* data = NULL;
 	enum command_parse_status status = cmd_status_ok;
 
@@ -135,9 +136,10 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 
 			while ((tmp = list_get_first(tokens)))
 			{
-				if (*token)
-					strcat(token, " ");
-				strcat(token, tmp);
+				if (offset > 0)
+					token[offset++] = ' ';
+				memcpy(token + offset, tmp, strlen(tmp));
+				offset += strlen(tmp);
 				list_remove(tokens, tmp);
 				hub_free(tmp);
 			}

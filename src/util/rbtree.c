@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -318,12 +318,10 @@ static struct rb_node* rb_it_set(struct rb_tree* tree, struct rb_node* n)
 	return n;
 }
 
-static void null_free(void* ptr) { }
-
 struct rb_node* rb_tree_first(struct rb_tree* tree)
 {
 	struct rb_node* n = tree->root;
-	list_clear(tree->iterator.stack, &null_free);
+	list_clear(tree->iterator.stack, NULL);
 	while (n->link[0])
 	{
 		push(tree, n);

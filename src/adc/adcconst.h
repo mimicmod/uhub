@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ typedef uint32_t fourcc_t;
 #define ADC_INF_FLAG_CLIENT_ID          "ID" /* client id, aka CID */
 #define ADC_INF_FLAG_NICK               "NI" /* nick name */
 #define ADC_INF_FLAG_DESCRIPTION        "DE" /* user description */
-#define ADC_INF_FLAG_USER_AGENT         "AP" /* software */
+#define ADC_INF_FLAG_USER_AGENT_PRODUCT "AP" /* software name */
 #define ADC_INF_FLAG_USER_AGENT_VERSION "VE" /* software version */
 #define ADC_INF_FLAG_SUPPORT            "SU" /* support (extensions, feature cast) */
 #define ADC_INF_FLAG_SHARED_SIZE        "SS" /* size of total files shared in bytes */

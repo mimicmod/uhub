@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,6 @@ static int send_command_access_denied(struct command_base* cbase, struct hub_use
 static int send_command_not_found(struct command_base* cbase, struct hub_user* user, const char* prefix);
 static int send_command_syntax_error(struct command_base* cbase, struct hub_user* user);
 static int send_command_missing_arguments(struct command_base* cbase, struct hub_user* user, struct hub_command* cmd);
-
-static void null_free(void* ptr) { }
 
 struct command_base
 {
@@ -429,7 +427,7 @@ static int command_whoip(struct command_base* cbase, struct hub_user* user, stru
 	ret = uman_get_user_by_addr(cbase->hub->users, users, arg->data.range);
 	if (!ret)
 	{
-		list_clear(users, &null_free);
+		list_clear(users, NULL);
 		list_destroy(users);
 		return command_status(cbase, user, cmd, cbuf_create_const("No users found."));
 	}
@@ -444,7 +442,7 @@ static int command_whoip(struct command_base* cbase, struct hub_user* user, stru
 	cbuf_append(buf, "\n");
 
 	send_message(cbase, user, buf);
-	list_clear(users, &null_free);
+	list_clear(users, NULL);
 	list_destroy(users);
 	return 0;
 }

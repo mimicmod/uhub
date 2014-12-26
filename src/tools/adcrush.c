@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ static size_t get_next_timeout_evt()
 		case 2: return get_wait_rand(15);
 		case 3: return get_wait_rand(5);
 	}
-
+	return 0;
 }
 
 

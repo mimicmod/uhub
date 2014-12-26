@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,6 +108,7 @@ static int handle(struct ADC_client* client, enum ADC_client_callback_type type,
 			break;
 
 		case ADC_CLIENT_SSL_OK:
+			printf("*** SSL connected (%s/%s).\n", data->tls_info->version, data->tls_info->cipher);
 			break;
 
 		case ADC_CLIENT_LOGGING_IN:
@@ -159,6 +160,8 @@ static int handle(struct ADC_client* client, enum ADC_client_callback_type type,
 static int running = 1;
 
 #if !defined(WIN32)
+static struct uhub_notify_handle* notify_handle;
+
 void adm_handle_signal(int sig)
 {
 	switch (sig)
@@ -215,6 +218,17 @@ void adm_setup_signal_handlers()
 	}
 }
 
+void adm_setup_control_pipe()
+{
+	notify_handle = net_notify_create(NULL, NULL);
+}
+
+void adm_shutdown_control_pipe()
+{
+	net_notify_destroy(notify_handle);
+	notify_handle = NULL;
+}
+
 void adm_shutdown_signal_handlers()
 {
 }
@@ -233,6 +247,7 @@ int main(int argc, char** argv)
 
 	struct ADC_client* client;
 	net_initialize();
+	adm_setup_control_pipe();
 
 	memset(g_usermap, 0, sizeof(g_usermap));
 
@@ -241,6 +256,8 @@ int main(int argc, char** argv)
 	ADC_client_connect(client, argv[1]);
 
 	while (running && net_backend_process()) { }
+
+	adm_shutdown_control_pipe();
 
 	ADC_client_destroy(client);
 	net_destroy();

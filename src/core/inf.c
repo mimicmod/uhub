@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -366,49 +366,37 @@ static int check_logged_in(struct hub_info* hub, struct hub_user* user, struct a
  */
 static int check_user_agent(struct hub_info* hub, struct hub_user* user, struct adc_message* cmd)
 {
-	char* ua_encoded = 0;
-	char* ua_ver_encoded = 0;
-	char* ua = 0;
-	char* ua_ver = 0;
+	char* ua_name_encoded = 0;
+	char* ua_version_encoded = 0;
+	char* str = 0;
 	size_t offset = 0;
-	size_t len = 0;
-	size_t max = MAX_UA_LEN;
 
-	/* Get client user agent */
-	ua_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT);
-
-	/* Get client user agent version*/
-	ua_ver_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_VERSION);
-
-	if (ua_encoded)
+	/* Get client user agent version */
+	ua_name_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_PRODUCT);
+	ua_version_encoded = adc_msg_get_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_VERSION);
+	if (ua_name_encoded)
 	{
-		ua = adc_msg_unescape(ua_encoded);
-		if (ua)
+		str = adc_msg_unescape(ua_name_encoded);
+		if (str)
 		{
-			len = strlen(ua);
-			memcpy(user->id.user_agent, ua, MIN(len, max));
-			offset += len;
-			hub_free(ua);
+			offset = strlen(str);
+			memcpy(user->id.user_agent, str, MIN(offset, MAX_UA_LEN));
+			hub_free(str);
 		}
 	}
 
-	if (ua_ver_encoded)
+	if (ua_version_encoded)
 	{
-		ua_ver = adc_msg_unescape(ua_ver_encoded);
-		if (ua_ver)
+		str = adc_msg_unescape(ua_version_encoded);
+		if (str)
 		{
-			if (offset)
-			{
-				user->id.user_agent[offset++] = ' ';
-				max = MAX_UA_LEN - offset;
-			}
-			len = strlen(ua_ver);
-			memcpy(user->id.user_agent + offset, ua_ver, MIN(len, max));
-			hub_free(ua_ver);
+			memcpy(user->id.user_agent + offset, str, MIN(strlen(str), MAX_UA_LEN - offset));
+			hub_free(str);
 		}
 	}
-	hub_free(ua_encoded);
-	hub_free(ua_ver_encoded);
+
+	hub_free(ua_name_encoded);
+	hub_free(ua_version_encoded);
 	return 0;
 }
 
@@ -590,6 +578,10 @@ static int set_credentials(struct hub_info* hub, struct hub_user* user, struct a
 			adc_msg_add_argument(cmd, ADC_INF_FLAG_CLIENT_TYPE ADC_CLIENT_TYPE_BOT);
 			break;
 
+		case auth_cred_ubot:
+			adc_msg_add_argument(cmd, ADC_INF_FLAG_CLIENT_TYPE ADC_CLIENT_TYPE_BOT);
+			break;
+
 		case auth_cred_guest:
 			/* Nothing to be added to the info message */
 			break;
@@ -600,6 +592,14 @@ static int set_credentials(struct hub_info* hub, struct hub_user* user, struct a
 
 		case auth_cred_operator:
 			adc_msg_add_argument(cmd, ADC_INF_FLAG_CLIENT_TYPE ADC_CLIENT_TYPE_OPERATOR);
+			break;
+
+		case auth_cred_opbot:
+			adc_msg_add_argument(cmd, ADC_INF_FLAG_CLIENT_TYPE ADC_CLIENT_TYPE_HUBBOT);
+			break;
+
+		case auth_cred_opubot:
+			adc_msg_add_argument(cmd, ADC_INF_FLAG_CLIENT_TYPE ADC_CLIENT_TYPE_HUBBOT);
 			break;
 
 		case auth_cred_super:
@@ -657,7 +657,8 @@ static int hub_handle_info_low_bandwidth(struct hub_info* hub, struct hub_user* 
 {
 	if (hub->config->low_bandwidth_mode)
 	{
-		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_USER_AGENT);
+		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_VERSION);
+		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_USER_AGENT_PRODUCT);
 		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_SHARED_FILES);
 		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_COUNT_HUB_NORMAL);
 		adc_msg_remove_named_argument(cmd, ADC_INF_FLAG_COUNT_HUB_REGISTER);
@@ -831,5 +832,3 @@ int hub_handle_info(struct hub_info* hub, struct hub_user* user, const struct ad
 
 	return 0;
 }
-
-

@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -113,6 +113,7 @@ struct plugin_command_arg_data;
 
 typedef int (*hfunc_send_chat)(struct plugin_handle*, enum auth_credentials cred_low, enum auth_credentials cred_high, const char* message);
 typedef int (*hfunc_send_message)(struct plugin_handle*, struct plugin_user* user, const char* message);
+typedef int (*hfunc_send_broadcast_message)(struct plugin_handle*, const char* message);
 typedef int (*hfunc_send_status)(struct plugin_handle*, struct plugin_user* to, int code, const char* message);
 typedef int (*hfunc_user_disconnect)(struct plugin_handle*, struct plugin_user* user);
 typedef int (*hfunc_command_add)(struct plugin_handle*, struct plugin_command_handle*);
@@ -120,6 +121,8 @@ typedef int (*hfunc_command_del)(struct plugin_handle*, struct plugin_command_ha
 
 typedef size_t (*hfunc_command_arg_reset)(struct plugin_handle*, struct plugin_command*);
 typedef struct plugin_command_arg_data* (*hfunc_command_arg_next)(struct plugin_handle*, struct plugin_command*, enum plugin_command_arg_type);
+
+typedef size_t (*hfunc_get_usercount)(struct plugin_handle*);
 
 typedef char* (*hfunc_get_hub_name)(struct plugin_handle*);
 typedef void  (*hfunc_set_hub_name)(struct plugin_handle*, const char*);
@@ -133,13 +136,15 @@ typedef void  (*hfunc_set_hub_description)(struct plugin_handle*, const char*);
 struct plugin_hub_funcs
 {
 	hfunc_send_chat send_chat;
-  hfunc_send_message send_message;
+	hfunc_send_message send_message;
+	hfunc_send_broadcast_message send_broadcast_message;
 	hfunc_send_status send_status_message;
 	hfunc_user_disconnect user_disconnect;
 	hfunc_command_add command_add;
 	hfunc_command_del command_del;
 	hfunc_command_arg_reset command_arg_reset;
 	hfunc_command_arg_next command_arg_next;
+	hfunc_get_usercount get_usercount;
 	hfunc_get_hub_name get_name;
 	hfunc_set_hub_name set_name;
 	hfunc_get_hub_description get_description;

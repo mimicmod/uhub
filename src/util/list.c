@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,11 +40,16 @@ void list_destroy(struct linked_list* list)
 	}
 }
 
+static void dummy_free(void* ptr)
+{
+}
 
 void list_clear(struct linked_list* list, void (*free_handle)(void* ptr))
 {
 	struct node* node = list->first;
 	struct node* tmp = NULL;
+	if (free_handle == NULL)
+		free_handle = &dummy_free;
 	while (node)
 	{
 		tmp = node->next;

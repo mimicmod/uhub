@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ struct hub_user* user_create_bot(struct hub_info* hub, const char* nick, const c
 	{
 		adc_msg_add_argument(user->info, sid_to_string(user->id.sid));
 		adc_msg_add_named_argument(user->info, ADC_INF_FLAG_CLIENT_TYPE, botkey == 1 ? ADC_CLIENT_TYPE_HUBBOT : ADC_CLIENT_TYPE_BOT);
-		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_USER_AGENT, PRODUCT_STRING);
+		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_USER_AGENT_PRODUCT, PRODUCT_STRING);
 		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_NICK, nick);
 		adc_msg_add_named_argument_string(user->info, ADC_INF_FLAG_DESCRIPTION, description);
 		adc_msg_add_named_argument(user->info, ADC_INF_FLAG_CLIENT_ID, generate_bot_cid(hub, nick));

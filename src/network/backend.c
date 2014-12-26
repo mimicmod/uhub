@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -102,14 +102,7 @@ void net_backend_shutdown()
 }
 
 
-void net_con_reinitialize(struct net_connection* con, net_connection_cb callback, const void* ptr, int events)
-{
-	con->callback = callback;
-	con->ptr = (void*) ptr;
-	net_con_update(con, events);
-}
-
-void net_con_update(struct net_connection* con, int events)
+void net_backend_update(struct net_connection* con, int events)
 {
 	g_backend->handler.con_mod(g_backend->data, con, events);
 }
@@ -148,7 +141,7 @@ int net_backend_process()
 	}
 
 	// Process pending DNS results
-	net_dns_process();
+	// net_dns_process();
 
 	g_backend->handler.backend_process(g_backend->data, res);
 
@@ -166,8 +159,8 @@ void net_con_initialize(struct net_connection* con, int sd, net_connection_cb ca
 {
 	g_backend->handler.con_init(g_backend->data, con, sd, callback, ptr);
 
-	net_set_nonblocking(con->sd, 1);
-	net_set_nosigpipe(con->sd, 1);
+	net_set_nonblocking(net_con_get_sd(con), 1);
+	net_set_nosigpipe(net_con_get_sd(con), 1);
 
 	g_backend->handler.con_add(g_backend->data, con, events);
 	g_backend->common.num++;

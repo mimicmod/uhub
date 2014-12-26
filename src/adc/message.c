@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 	uhub_assert(X); \
 	uhub_assert(X->cache); \
 	uhub_assert(X->capacity); \
-	uhub_assert(X->length); \
 	uhub_assert(X->length <= X->capacity); \
 	uhub_assert(X->references > 0); \
 	uhub_assert(X->length == strlen(X->cache));
@@ -311,7 +310,7 @@ struct adc_message* adc_msg_parse_verify(struct hub_user* u, const char* line, s
 	if (!command)
 		return 0;
 
-	if (command->source && (!u || command->source != u->id.sid))
+	if (command->source && (!u || (command->source != u->id.sid && !auth_cred_is_unrestricted(u->credentials))))
 	{
 		LOG_DEBUG("Command does not match user's SID (command->source=%d, user->id.sid=%d)", command->source, (u ? u->id.sid : 0));
 		adc_msg_free(command);

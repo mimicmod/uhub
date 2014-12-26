@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "uhub.h"
 #include "network/common.h"
+#include "network/backend.h"
 
 static int is_blocked_or_interrupted()
 {
@@ -116,10 +117,27 @@ void* net_con_get_ptr(struct net_connection* con)
 	return con->ptr;
 }
 
-void net_con_destroy(struct net_connection* con)
+void net_con_update(struct net_connection* con, int events)
 {
 #ifdef SSL_SUPPORT
 	if (con->ssl)
+		net_ssl_update(con, events);
+	else
+#endif
+		net_backend_update(con, events);
+}
+
+void net_con_reinitialize(struct net_connection* con, net_connection_cb callback, const void* ptr, int events)
+{
+	con->callback = callback;
+	con->ptr = (void*) ptr;
+	net_con_update(con, events);
+}
+
+void net_con_destroy(struct net_connection* con)
+{
+#ifdef SSL_SUPPORT
+	if (con && con->ssl)
 		net_ssl_destroy(con);
 #endif
 	hub_free(con);
@@ -183,6 +201,7 @@ static int net_connect_job_check(struct net_connect_job* job)
 	{
 		LOG_TRACE("net_connect_job_check(): Socket connected!");
 		job->con = NULL;
+		net_con_clear_timeout(con);
 		net_connect_callback(job->handle, net_connect_status_ok, con);
 		return 1;
 	}
@@ -264,7 +283,6 @@ static int net_connect_job_process(struct net_connect_job* job)
  */
 static void net_connect_job_internal_cb(struct net_connection* con, int event, void* ptr)
 {
-	int ret;
 	struct net_connect_job* job = net_con_get_ptr(con);
 	struct net_connect_job* next_job = job->next;
 	struct net_connect_handle* handle = job->handle;
@@ -307,7 +325,7 @@ static void net_connect_job_internal_cb(struct net_connection* con, int event, v
 }
 
 
-static int net_connect_cancel(struct net_connect_handle* handle)
+static void net_connect_cancel(struct net_connect_handle* handle)
 {
 	struct net_connect_job* job;
 
@@ -363,6 +381,7 @@ static int net_connect_process(struct net_connect_handle* handle)
 		return 1; // Connected - cool!
 
 	net_connect_process_queue(handle, handle->job4);
+	return 0;
 }
 
 
@@ -421,7 +440,6 @@ static int net_con_connect_dns_callback(struct net_dns_job* job, const struct ne
 	struct net_connect_handle* handle = (struct net_connect_handle*) net_dns_job_get_ptr(job);
 	handle->dns = NULL;
 	size_t usable = 0;
-	int ret;
 
 	LOG_TRACE("net_con_connect(): async - Got DNS results");
 	if (!result)
@@ -506,3 +524,34 @@ static void net_connect_callback(struct net_connect_handle* handle, enum net_con
 	// Cleanup
 	net_connect_destroy(handle);
 }
+
+static void timeout_callback(struct timeout_evt* evt)
+{
+	net_con_callback((struct net_connection*) evt->ptr, NET_EVENT_TIMEOUT);
+}
+
+
+void net_con_set_timeout(struct net_connection* con, int seconds)
+{
+	if (!con->timeout)
+	{
+		con->timeout = hub_malloc_zero(sizeof(struct timeout_evt));
+		timeout_evt_initialize(con->timeout, timeout_callback, con);
+		timeout_queue_insert(net_backend_get_timeout_queue(), con->timeout, seconds);
+	}
+	else
+	{
+		timeout_queue_reschedule(net_backend_get_timeout_queue(), con->timeout, seconds);
+	}
+}
+
+void net_con_clear_timeout(struct net_connection* con)
+{
+	if (con->timeout && timeout_evt_is_scheduled(con->timeout))
+	{
+		timeout_queue_remove(net_backend_get_timeout_queue(), con->timeout);
+		hub_free(con->timeout);
+		con->timeout = 0;
+	}
+}
+

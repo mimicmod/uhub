@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +73,15 @@ static void probe_net_event(struct net_connection* con, int events, void *arg)
 				}
 				probe_destroy(probe);
 				return;
+			}
+			else if ((memcmp(probe_recvbuf, "GET ", 4) == 0) ||
+				 (memcmp(probe_recvbuf, "POST", 4) == 0) ||
+				 (memcmp(probe_recvbuf, "HEAD", 4) == 0))
+			{
+				/* Looks like HTTP - Not supported, but we log it. */
+				LOG_TRACE("Probed HTTP connection. Not supported closing connection (%s)", ip_convert_to_string(&probe->addr));
+				const char* buf = "501 Not implemented\r\n\r\n";
+				net_con_send(con, buf, strlen(buf));
 			}
 #ifdef SSL_SUPPORT
 			else if (bytes >= 11 &&

@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,6 +95,11 @@ struct ADC_client_quit_reason
 	int flags;
 };
 
+struct ADC_client_tls_info
+{
+	const char* cipher;
+	const char* version;
+};
 
 struct ADC_client_callback_data
 {
@@ -103,6 +108,7 @@ struct ADC_client_callback_data
 		struct ADC_chat_message* chat;
 		struct ADC_user* user;
 		struct ADC_client_quit_reason* quit;
+		struct ADC_client_tls_info* tls_info;
 	};
 };
 

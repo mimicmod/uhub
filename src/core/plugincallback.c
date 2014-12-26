@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,6 +88,17 @@ static int cbfunc_send_message(struct plugin_handle* plugin, struct plugin_user*
 	return 1;
 }
 
+static int cbfunc_send_broadcast(struct plugin_handle* plugin, const char* message)
+{
+	char* buffer = adc_msg_escape(message);
+	struct adc_message* command = adc_msg_construct(ADC_CMD_IMSG, strlen(buffer) + 6);
+	adc_msg_add_argument(command, buffer);
+	route_to_all(plugin_get_hub(plugin), command);
+	adc_msg_free(command);
+	hub_free(buffer);
+	return 1;
+}
+
 static int cbfunc_send_status(struct plugin_handle* plugin, struct plugin_user* user, int code, const char* message)
 {
 	char code_str[4];
@@ -151,6 +162,12 @@ struct plugin_command_arg_data* cbfunc_command_arg_next(struct plugin_handle* pl
 	return (struct plugin_command_arg_data*) hub_command_arg_next((struct hub_command*) cmd, (enum hub_command_arg_type) t);
 }
 
+static size_t cbfunc_get_usercount(struct plugin_handle* plugin)
+{
+	struct hub_info* hub = plugin_get_hub(plugin);
+	return hub->users->count;
+}
+
 static char* cbfunc_get_hub_name(struct plugin_handle* plugin)
 {
 	struct hub_info* hub = plugin_get_hub(plugin);
@@ -207,12 +224,14 @@ void plugin_register_callback_functions(struct plugin_handle* handle)
 {
 	handle->hub.send_chat = cbfunc_send_chat;
 	handle->hub.send_message = cbfunc_send_message;
+	handle->hub.send_broadcast_message = cbfunc_send_broadcast;
 	handle->hub.send_status_message = cbfunc_send_status;
 	handle->hub.user_disconnect = cbfunc_user_disconnect;
 	handle->hub.command_add = cbfunc_command_add;
 	handle->hub.command_del = cbfunc_command_del;
 	handle->hub.command_arg_reset = cbfunc_command_arg_reset;
 	handle->hub.command_arg_next = cbfunc_command_arg_next;
+	handle->hub.get_usercount = cbfunc_get_usercount;
 	handle->hub.get_name = cbfunc_get_hub_name;
 	handle->hub.set_name = cbfunc_set_hub_name;
 	handle->hub.get_description = cbfunc_get_hub_description;

@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,13 +58,13 @@ static int timeout_queue_locked(struct timeout_queue* t)
 	return t->lock.ptr != NULL;
 }
 
-static int timeout_queue_lock(struct timeout_queue* t)
+static void timeout_queue_lock(struct timeout_queue* t)
 {
 	t->lock.ptr = t;
 }
 
 // unlock and flush the locked events to the main timeout queue.
-static int timeout_queue_unlock(struct timeout_queue* t)
+static void timeout_queue_unlock(struct timeout_queue* t)
 {
 	struct timeout_evt* evt, *tmp, *first;
 	size_t pos;

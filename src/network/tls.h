@@ -1,6 +1,6 @@
 /*
  * uhub - A tiny ADC p2p connection hub
- * Copyright (C) 2007-2013, Jan Vidar Krey
+ * Copyright (C) 2007-2014, Jan Vidar Krey
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ enum ssl_state
 	tls_st_accepting,
 	tls_st_connecting,
 	tls_st_connected,
-	tls_st_need_read,  /* special case of connected */
-	tls_st_need_write, /* special case of connected */
 	tls_st_disconnecting,
 };
 
@@ -58,8 +56,9 @@ extern int net_ssl_library_shutdown();
 
 /**
  * Create a new SSL context.
+ * Specify a TLS version as a string: "1.2" for TLS 1.2.
  */
-extern struct ssl_context_handle* net_ssl_context_create();
+extern struct ssl_context_handle* net_ssl_context_create(const char* tls_version, const char* tls_ciphersuite);
 extern void net_ssl_context_destroy(struct ssl_context_handle* ctx);
 
 /**
@@ -90,14 +89,25 @@ extern ssize_t net_con_ssl_connect(struct net_connection*);
 extern ssize_t net_ssl_send(struct net_connection* con, const void* buf, size_t len);
 extern ssize_t net_ssl_recv(struct net_connection* con, void* buf, size_t len);
 
+/**
+ * Update the event mask. Additional events may be requested depending on the
+ * needs of the TLS layer.
+ *
+ * @param con Connection handle.
+ * @param events Event mask (NET_EVENT_*)
+ */
+extern void net_ssl_update(struct net_connection* con, int events);
+
 extern void net_ssl_shutdown(struct net_connection* con);
 extern void net_ssl_destroy(struct net_connection* con);
 extern void net_ssl_callback(struct net_connection* con, int events);
 
 
-
 extern ssize_t net_con_ssl_handshake(struct net_connection* con, enum net_con_ssl_mode, struct ssl_context_handle* ssl_ctx);
 extern int   net_con_is_ssl(struct net_connection* con);
+
+extern const char* net_ssl_get_tls_version(struct net_connection* con);
+extern const char* net_ssl_get_tls_cipher(struct net_connection* con);
 
 #endif /* SSL_SUPPORT */
 #endif /* HAVE_UHUB_NETWORK_TLS_H */
