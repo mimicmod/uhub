@@ -465,7 +465,7 @@ static int command_broadcast(struct command_base* cbase, struct hub_user* user, 
 
 	LIST_FOREACH(struct hub_user*, target, cbase->hub->users->list,
 	{
-		if (target != user)
+		if (target != user && strcmp(target-id.nick, cbase->hub->config->opchat_nick) != 0)
 		{
 			recipients++;
 			command = adc_msg_construct(ADC_CMD_DMSG, message_len + 23);
