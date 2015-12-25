@@ -474,7 +474,7 @@ static int command_broadcast(struct command_base* cbase, struct hub_user* user, 
 
 			adc_msg_add_argument(command, from_sid);
 			adc_msg_add_argument(command, sid_to_string(target->id.sid));
-			adc_msg_add_argument(command, message);
+			adc_msg_add_argument(command, adc_msg_escape(message));
 			adc_msg_add_argument(command, pm_flag);
 
 			route_to_user(cbase->hub, target, command);
