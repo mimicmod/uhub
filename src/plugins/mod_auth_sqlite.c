@@ -1383,10 +1383,51 @@ static int command_tempbanip(struct plugin_handle* plugin, struct plugin_user* u
 static int command_acl(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
 {
 	struct sql_data* sql = (struct sql_data*) plugin->ptr;
+	size_t argnum = list_size(cmd->args);
+	int aclsize = 0;
+	int lim = 10;
+	size_t offs = 1;
+	struct plugin_command_arg_data* arg1 = NULL;
+	struct plugin_command_arg_data* arg2 = NULL;
 	struct cbuffer* buf = cbuf_create(512);
 	struct linked_list* found = (struct linked_list*) list_create();
+	sqlite3_stmt *res;
+	int error = 0;
+	const char *tail;
+	char *query = "SELECT COUNT(*) FROM acl;";
 	
-	sql_execute(sql, get_acl_callback, found, "SELECT * FROM acl;");
+	error = sqlite3_prepare_v2(sql->db, query, strlen(query), &res, &tail);
+	
+	if (error == SQLITE_OK && sqlite3_step(res) == SQLITE_ROW)
+	{
+		aclsize = sqlite3_column_int(res, 0);
+	}
+	
+	sqlite3_finalize(res);
+	
+	if (argnum == 2)
+	{
+		arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+		arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+		offs = arg1->data.integer;
+		lim = arg2->data.integer;
+		
+		if (offs <= 1)
+			offs = 1;
+		if (lim <= 1)
+			lim = 1;
+		
+		sql_execute(sql, get_acl_callback, found, "SELECT * FROM acl ORDER BY id ASC LIMIT %d,%d;", offs-1, lim);
+	}
+	else
+	{
+		if (argnum == 1)
+		{
+			arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+			lim = arg1->data.integer;
+		}
+		sql_execute(sql, get_acl_callback, found, "SELECT * FROM (SELECT * FROM acl ORDER BY id DESC LIMIT %d) ORDER BY id ASC;", lim);
+	}
 	
 	size_t acl_count = list_size(found);
   
@@ -1404,8 +1445,17 @@ static int command_acl(struct plugin_handle* plugin, struct plugin_user* user, s
 			cbuf_append_format(buf, "%s", convert_aclinfo_to_string(rule));
 			rule = (struct acl_info*) list_get_next(found);
 		}
-
-		cbuf_append_format(buf, "\n%d entr%s shown\n", acl_count, acl_count != 1 ? "ies" : "y");
+		
+		if (argnum == 2) {
+			cbuf_append_format(buf, "\nEntr%s %d to %d of total %d entr%s shown\n", acl_count != 1 ? "ies" : "y", offs, offs-1+acl_count, aclsize, aclsize != 1 ? "ies" : "y");
+		}
+		else
+		{
+			cbuf_append_format(buf, "\nLast %d entr%s of total %d entr%s shown\n", acl_count, acl_count != 1 ? "ies" : "y", aclsize, aclsize != 1 ? "ies" : "y");
+			
+			if (argnum == 0)
+				cbuf_append(buf, "Use !acl <N> to show last N entries or use !acl <M> <N> to show N entries starting from entry M.\n");
+		}
 	}
 
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
@@ -1690,7 +1740,7 @@ static void update_user_activity(struct plugin_handle* plugin, struct plugin_use
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
 	struct sql_data* sql;
-	PLUGIN_INITIALIZE(plugin, "SQLite authentication plugin", "1.0", "Authenticate users based on a SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite authentication plugin", "1.1", "Authenticate users based on a SQLite database.");
 
 	// Authentication actions.
 	plugin->funcs.auth_get_user = get_user;
@@ -1799,7 +1849,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->hub.command_add(plugin, sql->command_nopm_handle);
 
 	sql->command_acl_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_acl_handle, plugin, "acl", "", auth_cred_operator, &command_acl, "List all ACL rules.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_acl_handle, plugin, "acl", "?N?N", auth_cred_operator, &command_acl, "List all ACL rules.");
 	plugin->hub.command_add(plugin, sql->command_acl_handle);
 
 	sql->command_aclsearch_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
