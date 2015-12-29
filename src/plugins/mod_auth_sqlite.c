@@ -62,11 +62,12 @@ struct sql_data
 	struct plugin_command_handle* command_ban_handle; ///<<< "A handle to the !ban command."
 	struct plugin_command_handle* command_bannick_handle; ///<<< "A handle to the !bannick command."
 	struct plugin_command_handle* command_banip_handle; ///<<< "A handle to the !banip command."
-	struct plugin_command_handle* command_denynick_handle; ///<<< "A handle to the !denynick command."
+	struct plugin_command_handle* command_bancid_handle; ///<<< "A handle to the !bancid command."
 	struct plugin_command_handle* command_denyip_handle; ///<<< "A handle to the !denyip command."
 	struct plugin_command_handle* command_tempban_handle; ///<<< "A handle to the !tempban command."
 	struct plugin_command_handle* command_tempbannick_handle; ///<<< "A handle to the !tempbannick command."
 	struct plugin_command_handle* command_tempbanip_handle; ///<<< "A handle to the !tempbanip command."
+	struct plugin_command_handle* command_tempbancid_handle; ///<<< "A handle to the !tempbancid command."
 	struct plugin_command_handle* command_protectip_handle; ///<<< "A handle to the !protectip command."
 	struct plugin_command_handle* command_natip_handle; ///<<< "A handle to the !natip command."
 	struct plugin_command_handle* command_aclsearch_handle; ///<<< "A handle to the !aclsearch command."
@@ -1176,40 +1177,34 @@ static int command_banip(struct plugin_handle* plugin, struct plugin_user* user,
 	return 0;
 }
 
-static int command_denynick(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+static int command_bancid(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
 {
 	struct acl_info data;
 	struct cbuffer* buf = cbuf_create(128);
-	struct auth_info* userinfo = hub_malloc(sizeof(struct auth_info));
 	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
-	char* nick = arg1->data.string;
+	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	char* cid = arg1->data.string;
+	char* reason = arg2 ? arg2->data.string : "";
 
-	if (get_user(plugin, nick, userinfo) == st_allow)
-	{
-		if (userinfo->credentials >= user->credentials)
-			cbuf_append_format(buf, "*** %s: Insufficient rights.", cmd->prefix);
-	}
+	memset(&data, 0, sizeof(struct acl_info));
+	data.flags = 0;
+	strncpy(data.who, user->nick, MAX_NICK_LEN);
+	strncpy(data.cid, cid, MAX_CID_LEN);
+	strncpy(data.reason, reason, 512);
+	data.expiry = -1;
+	data.who[MAX_NICK_LEN] = '\0';
+	data.cid[MAX_CID_LEN] = '\0';
+	data.reason[512] = '\0';
+
+	acl_flag_set(&data, ban_cid);
+
+	if (acl_add(plugin, &data) == st_allow)
+		cbuf_append_format(buf, "*** %s: CID \"%s\" banned.", cmd->prefix, &data.cid);
 	else
-	{
-		memset(&data, 0, sizeof(struct acl_info));
-		data.flags = 0;
-		strncpy(data.nickname, nick, MAX_NICK_LEN);
-		strncpy(data.who, user->nick, MAX_NICK_LEN);
-		data.expiry = -1;
-		data.nickname[MAX_NICK_LEN] = '\0';
-		data.who[MAX_NICK_LEN] = '\0';
-      
-		acl_flag_set(&data, deny_nickname);
-  
-		if (acl_add(plugin, &data) == st_allow)
-			cbuf_append_format(buf, "*** %s: Nick \"%s\" denied.", cmd->prefix, &data.nickname);
-		else
-			cbuf_append_format(buf, "*** %s: Unable to deny nick \"%s\".", cmd->prefix, &data.nickname);
-	}
+		cbuf_append_format(buf, "*** %s: Unable to ban CID \"%s\".", cmd->prefix, &data.cid);
   
 	plugin->hub.send_message(plugin, user, cbuf_get(buf));
 	cbuf_destroy(buf);
-	hub_free(userinfo);
 
 	return 0;
 }
@@ -1285,7 +1280,7 @@ static int command_tempban(struct plugin_handle* plugin, struct plugin_user* use
 		if (acl_add(plugin, &data) == st_allow)
 		{
 			plugin->hub.user_disconnect(plugin, target);
-			cbuf_append_format(buf, "*** %s: User \"%s\" banned.", cmd->prefix, &data.nickname);
+			cbuf_append_format(buf, "*** %s: User \"%s\" banned temporarily.", cmd->prefix, &data.nickname);
 		}
 		else
 			cbuf_append_format(buf, "*** %s: Unable to ban user \"%s\".", cmd->prefix, data.nickname);
@@ -1329,7 +1324,7 @@ static int command_tempbannick(struct plugin_handle* plugin, struct plugin_user*
 		acl_flag_set(&data, ban_nickname);
   
 		if (acl_add(plugin, &data) == st_allow)
-			cbuf_append_format(buf, "*** %s: Nick \"%s\" banned.", cmd->prefix, &data.nickname);
+			cbuf_append_format(buf, "*** %s: Nick \"%s\" banned temporarily.", cmd->prefix, &data.nickname);
 		else
 			cbuf_append_format(buf, "*** %s: Unable to ban nick \"%s\".", cmd->prefix, &data.nickname);
 	}
@@ -1367,9 +1362,9 @@ static int command_tempbanip(struct plugin_handle* plugin, struct plugin_user* u
 	if (acl_add(plugin, &data) == st_allow)
 	{
 		if (ip_compare(&range->lo, &range->hi) != 0)
-			cbuf_append_format(buf, "*** %s: IP range \"%s\" banned.", cmd->prefix, ip_convert_range_to_string(range));
+			cbuf_append_format(buf, "*** %s: IP range \"%s\" banned temporarily.", cmd->prefix, ip_convert_range_to_string(range));
 		else
-			cbuf_append_format(buf, "*** %s: IP \"%s\" banned.", cmd->prefix, ip_convert_to_string(&range->lo));
+			cbuf_append_format(buf, "*** %s: IP \"%s\" banned temporarily.", cmd->prefix, ip_convert_to_string(&range->lo));
 	}
 	else
 		cbuf_append_format(buf, "*** %s: Unable to ban IP/range \"%s\".", cmd->prefix, ip_convert_range_to_string(range));
@@ -1380,6 +1375,39 @@ static int command_tempbanip(struct plugin_handle* plugin, struct plugin_user* u
 	return 0;
 }
 
+static int command_tempbancid(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct acl_info data;
+	struct cbuffer* buf = cbuf_create(128);
+	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_time);
+	struct plugin_command_arg_data* arg3 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	char* cid = arg1->data.string;
+	time_t expiry = arg2->data.time;
+	char* reason = arg3 ? arg3->data.string : "";
+	
+	memset(&data, 0, sizeof(struct acl_info));
+	data.flags = 0;
+	strncpy(data.who, user->nick, MAX_NICK_LEN);
+	strncpy(data.cid, cid, MAX_CID_LEN);
+	data.expiry = time(NULL) + expiry;
+	strncpy(data.reason, reason, 512);
+	data.who[MAX_NICK_LEN] = '\0';
+	data.cid[MAX_CID_LEN] = '\0';
+	data.reason[512] = '\0';
+
+	acl_flag_set(&data, ban_cid);
+
+	if (acl_add(plugin, &data) == st_allow)
+		cbuf_append_format(buf, "*** %s: CID \"%s\" banned temporarily.", cmd->prefix, &data.cid);
+	else
+		cbuf_append_format(buf, "*** %s: Unable to ban CID \"%s\".", cmd->prefix, &data.cid);
+  
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
+	cbuf_destroy(buf);
+
+	return 0;
+}
 static int command_acl(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
 {
 	struct sql_data* sql = (struct sql_data*) plugin->ptr;
@@ -1740,7 +1768,7 @@ static void update_user_activity(struct plugin_handle* plugin, struct plugin_use
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
 	struct sql_data* sql;
-	PLUGIN_INITIALIZE(plugin, "SQLite authentication plugin", "1.1", "Authenticate users based on a SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite authentication plugin", "1.2", "Authenticate users based on a SQLite database.");
 
 	// Authentication actions.
 	plugin->funcs.auth_get_user = get_user;
@@ -1797,7 +1825,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->hub.command_add(plugin, sql->command_userlist_handle);
 
 	sql->command_usercleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_usercleanup_handle, plugin, "usercleanup", "NC", auth_cred_admin, &command_usercleanup, "Delete inactive user accounts.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_usercleanup_handle, plugin, "usercleanup", "NC", auth_cred_super, &command_usercleanup, "Delete inactive user accounts.");
 	plugin->hub.command_add(plugin, sql->command_usercleanup_handle);
 
 	sql->command_ban_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
@@ -1807,17 +1835,17 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	sql->command_bannick_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
 	PLUGIN_COMMAND_INITIALIZE(sql->command_bannick_handle, plugin, "bannick", "n?+m", auth_cred_super, &command_bannick, "Ban nick.");
 	plugin->hub.command_add(plugin, sql->command_bannick_handle);
+	
+	sql->command_bancid_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_bancid_handle, plugin, "bancid", "m?+m", auth_cred_super, &command_bancid, "Ban CID.");
+	plugin->hub.command_add(plugin, sql->command_bancid_handle);
 
 	sql->command_banip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_banip_handle, plugin, "banip", "r?+m", auth_cred_super, &command_banip, "Ban IP/range.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_banip_handle, plugin, "banip", "r?+m", auth_cred_super, &command_banip, "Ban IP/range. User disconnected after handshake and is informed by ban message.");
 	plugin->hub.command_add(plugin, sql->command_banip_handle);
 
-	sql->command_denynick_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_denynick_handle, plugin, "denynick", "n", auth_cred_admin, &command_denynick, "Add restricted nickname.");
-	plugin->hub.command_add(plugin, sql->command_denynick_handle);
-
 	sql->command_denyip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_denyip_handle, plugin, "denyip", "r", auth_cred_admin, &command_denyip, "Add restricted IP/range.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_denyip_handle, plugin, "denyip", "r", auth_cred_admin, &command_denyip, "Add restricted IP/range. Connection rejected before any messages are sent.");
 	plugin->hub.command_add(plugin, sql->command_denyip_handle);
 
 	sql->command_tempban_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
@@ -1828,6 +1856,10 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbannick_handle, plugin, "tempbannick", "nt?+m", auth_cred_operator, &command_tempbannick, "Temporarily ban nick.");
 	plugin->hub.command_add(plugin, sql->command_tempbannick_handle);
 
+	sql->command_tempbancid_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbancid_handle, plugin, "tempbancid", "mt?+m", auth_cred_operator, &command_tempbancid, "Temporarily ban CID.");
+	plugin->hub.command_add(plugin, sql->command_tempbancid_handle);
+	
 	sql->command_tempbanip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
 	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbanip_handle, plugin, "tempbanip", "rt?+m", auth_cred_operator, &command_tempbanip, "Temporarily ban IP/range.");
 	plugin->hub.command_add(plugin, sql->command_tempbanip_handle);
@@ -1861,7 +1893,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->hub.command_add(plugin, sql->command_acldel_handle);
 
 	sql->command_aclcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_aclcleanup_handle, plugin, "aclcleanup", "", auth_cred_admin, &command_aclcleanup, "Delete expired ACL rules.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_aclcleanup_handle, plugin, "aclcleanup", "", auth_cred_super, &command_aclcleanup, "Delete expired ACL rules.");
 	plugin->hub.command_add(plugin, sql->command_aclcleanup_handle);
 
 	plugin->ptr = sql;
@@ -1891,12 +1923,13 @@ int plugin_unregister(struct plugin_handle* plugin)
 		plugin->hub.command_del(plugin, sql->command_userpass_handle);
 		plugin->hub.command_del(plugin, sql->command_ban_handle);
 		plugin->hub.command_del(plugin, sql->command_bannick_handle);
+		plugin->hub.command_del(plugin, sql->command_bancid_handle);
 		plugin->hub.command_del(plugin, sql->command_banip_handle);
-		plugin->hub.command_del(plugin, sql->command_denynick_handle);
 		plugin->hub.command_del(plugin, sql->command_denyip_handle);
 		plugin->hub.command_del(plugin, sql->command_tempban_handle);
 		plugin->hub.command_del(plugin, sql->command_tempbanip_handle);
 		plugin->hub.command_del(plugin, sql->command_tempbannick_handle);
+		plugin->hub.command_del(plugin, sql->command_tempbancid_handle);
 		plugin->hub.command_del(plugin, sql->command_protectip_handle);
 		plugin->hub.command_del(plugin, sql->command_natip_handle);
 		plugin->hub.command_del(plugin, sql->command_mute_handle);
@@ -1917,12 +1950,13 @@ int plugin_unregister(struct plugin_handle* plugin)
 		hub_free(sql->command_userpass_handle);
 		hub_free(sql->command_ban_handle);
 		hub_free(sql->command_bannick_handle);
+		hub_free(sql->command_bancid_handle);
 		hub_free(sql->command_banip_handle);
-		hub_free(sql->command_denynick_handle);
 		hub_free(sql->command_denyip_handle);
 		hub_free(sql->command_tempban_handle);
 		hub_free(sql->command_tempbanip_handle);
 		hub_free(sql->command_tempbannick_handle);
+		hub_free(sql->command_tempbancid_handle);
 		hub_free(sql->command_protectip_handle);
 		hub_free(sql->command_natip_handle);
 		hub_free(sql->command_mute_handle);
