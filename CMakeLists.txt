@@ -170,7 +170,7 @@ set_target_properties(
 
 if (PCRE_SUPPORT)
 	add_library(mod_patterns MODULE ${PROJECT_SOURCE_DIR}/plugins/mod_patterns.c)
-	target_link_libraries(mod_patterns ${SQLITE3_LIBRARIES} pcre utils)
+	target_link_libraries(mod_patterns ${SQLITE3_LIBRARIES} ${PCRE_PCRE_LIBRARY} utils)
 	set_target_properties(mod_patterns PROPERTIES PREFIX "")
 endif()
 
