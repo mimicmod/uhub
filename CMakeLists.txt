@@ -24,6 +24,9 @@ option(ADC_STRESS "Enable the stress tester client" OFF)
 option(PCRE_SUPPORT "Enable PCRE support" ON)
 
 find_package(Git)
+
+set (Sqlite3_FIND_REQUIRED 1)
+
 find_package(Sqlite3)
 
 include(TestBigEndian)
