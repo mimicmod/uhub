@@ -690,7 +690,7 @@ static int hub_perform_login_checks(struct hub_info* hub, struct hub_user* user,
 	INF_CHECK(check_nick,                 hub, user, cmd);
 	INF_CHECK(check_network,              hub, user, cmd);
 	INF_CHECK(check_user_agent,           hub, user, cmd);
-	INF_CHECK(check_acl,                  hub, user, cmd);
+	//INF_CHECK(check_acl,                  hub, user, cmd);
 	INF_CHECK(check_logged_in,            hub, user, cmd);
 	return 0;
 }
@@ -723,6 +723,7 @@ int hub_handle_info_login(struct hub_info* hub, struct hub_user* user, struct ad
 	}
 
 	INF_CHECK(check_limits, hub, user, cmd);
+	INF_CHECK(check_acl, hub, user, cmd);
 
 	/* strip off stuff if low_bandwidth_mode is enabled */
 	hub_handle_info_low_bandwidth(hub, user, cmd);
