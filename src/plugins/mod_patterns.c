@@ -597,9 +597,9 @@ static int command_patterntest(struct plugin_handle* plugin, struct plugin_user*
 
 /*
  * Command to add a pattern exception to the list.
- * Usage: !patternexadd <pattern ID> <min protected credentials> <regexp>
- * Min protected credentials: set this minimally one level lower than related pattern min. protected credentials otherwise exception will not work.
- * Still this can prevent lowest user levels to send forbidden patterns.
+ * Usage: !patternexadd <pattern ID> <min exempt credentials> <max exempt credentials> <regexp>
+ * Min and max protected credentials: set this minimally one level lower than related pattern protected credentials otherwise exception will not work.
+ * Prevents lowest user levels when sending selected forbidden patterns. 
  * Pattern ID: ID of a pattern to which the exception is related.
  */
 
