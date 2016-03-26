@@ -10,7 +10,6 @@
 #include "util/config_token.h"
 #include "util/cbuffer.h"
 #include "pcre.h"
-#include "uhub.h"
 
 #define OVECCOUNT 30
 
