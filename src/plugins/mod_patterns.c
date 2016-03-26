@@ -10,6 +10,7 @@
 #include "util/config_token.h"
 #include "util/cbuffer.h"
 #include "pcre.h"
+#include "uhub.h"
 
 #define OVECCOUNT 30
 
@@ -35,6 +36,7 @@ struct patterns_data
 	struct plugin_command_handle* command_patternexadd_handle; ///<<< "A handle to the !patternexadd command."
 	struct plugin_command_handle* command_patternexdel_handle; ///<<< "A handle to the !patternexdel command."
 	struct plugin_command_handle* command_patternexlist_handle; ///<<< "A handle to the !patternexlist command."
+	struct plugin_command_handle* command_patterntest_handle; ///<<< "A handle to the !patternexlist command."
 };
 
 static int null_callback(void* ptr, int argc, char **argv, char **colName) { return 0; }
@@ -61,18 +63,118 @@ static int sql_execute(struct patterns_data* pdata, int (*callback)(void* ptr, i
 }
 
 /*
- * Function to create the patterns table in the given database file.
+ * Create or alter the patterns table in the given database file.
  * No need to create any schema manually if everything goes well,
  * sqlite3 should create the file automatically if not present already.
  * Called on plugin initialize.
  */
 
-static void create_tables(struct plugin_handle* plugin)
+static int create_patterns_table(struct plugin_handle* plugin, struct patterns_data* data)
 {
-	const char* table_create = "CREATE TABLE IF NOT EXISTS patterns(id INTEGER PRIMARY KEY,regexp CHAR NOT NULL,type INT NOT NULL,min_cred_protect CHAR NOT NULL DEFAULT('user')); CREATE TABLE IF NOT EXISTS pattern_exceptions(id INTEGER PRIMARY KEY,regexp CHAR NOT NULL,pattern_id INT NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,min_cred_protect CHAR NOT NULL DEFAULT('guest'));";
+	sqlite3_stmt *res;
+	int rc;
+	int count = 0;
 	
-	struct patterns_data* pdata = (struct patterns_data*) plugin->ptr;
-	sql_execute(pdata, null_callback, NULL, table_create);
+	const char* table_create_patterns = "CREATE TABLE patterns(id INTEGER PRIMARY KEY,regexp CHAR NOT NULL,type INT NOT NULL,min_cred_protect CHAR NOT NULL DEFAULT('user'),max_cred_protect CHAR NOT NULL DEFAULT('admin'));";
+	const char* table_alter_patterns = "ALTER TABLE patterns ADD COLUMN max_cred_protect CHAR NOT NULL DEFAULT('admin');";
+
+	rc = sqlite3_prepare_v2(data->db, "PRAGMA table_info(patterns);", 29, &res, NULL);
+	
+	if (rc == SQLITE_OK)
+	{
+		while (sqlite3_step(res) == SQLITE_ROW)
+			count++;
+	}
+	
+	sqlite3_finalize(res);
+		
+	if (count == 5)
+		return 1; // New schema
+	
+	if (count == 0) // Table does not exist
+	{
+		rc = sqlite3_exec(data->db, table_create_patterns, NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			set_error_message(plugin, "Unable to create patterns table.");
+			return 0;
+		}
+		else
+		    return 1;
+	}
+	
+	if (count > 0 && count < 5) // Table exists, but scheme is old
+	{
+		rc = sqlite3_exec(data->db, table_alter_patterns, NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			set_error_message(plugin, "Unable to alter patterns table.");
+			return 0;
+		}
+		else
+			return 1;
+	}
+	
+	set_error_message(plugin, "Unable to create or alter patterns table (unknown reason).");
+	return 0;
+}
+
+/*
+ * Create or alter the pattern exceptions table in the given database file.
+ */
+
+static int create_pattern_exceptions_table(struct plugin_handle* plugin, struct patterns_data* data)
+{
+	sqlite3_stmt *res;
+	int rc;
+	int count = 0;
+	
+	const char* table_create_exceptions = "CREATE TABLE pattern_exceptions(id INTEGER PRIMARY KEY,regexp CHAR NOT NULL,pattern_id INT NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,min_cred_protect CHAR NOT NULL DEFAULT('guest'),max_cred_protect CHAR NOT NULL DEFAULT('guest'));";
+	const char* table_alter_exceptions = "ALTER TABLE pattern_exceptions ADD COLUMN max_cred_protect CHAR NOT NULL DEFAULT('guest');";
+	
+	rc = sqlite3_prepare_v2(data->db, "PRAGMA table_info(pattern_exceptions);", 40, &res, NULL);
+	
+	if (rc == SQLITE_OK)
+	{
+		while (sqlite3_step(res) == SQLITE_ROW)
+			count++;
+	}
+	
+	sqlite3_finalize(res);
+		
+	if (count == 5)
+		return 1; // New schema
+	
+	if (count == 0) // Table does not exist
+	{
+		rc = sqlite3_exec(data->db, table_create_exceptions, NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			set_error_message(plugin, "Unable to create pattern exceptions table.");
+			return 0;
+		}
+		else
+		    return 1;
+	}
+	
+	if (count > 0 && count < 5) // Table exists, but scheme is old
+	{
+		rc = sqlite3_exec(data->db, table_alter_exceptions, NULL, NULL, NULL);
+
+		if (rc != SQLITE_OK)
+		{
+			set_error_message(plugin, "Unable to alter pattern exceptions table.");
+			return 0;
+		}
+		else
+			return 1;
+	}
+	
+	set_error_message(plugin, "Unable to create or alter pattern exceptions table (unknown reason).");
+	return 0;
 }
 
 static struct patterns_data* parse_config(const char* line, struct plugin_handle* plugin)
@@ -189,7 +291,8 @@ static int check_exception(struct patterns_data* pdata, const char* message, int
 	int error = 0;
 	int exception = 0;
 	const char *tail;
-	enum auth_credentials cred;
+	enum auth_credentials mincred;
+	enum auth_credentials maxcred;
 
 	int n = sprintf(query, "SELECT * FROM pattern_exceptions WHERE pattern_id=%d;", pattern_id);
 
@@ -197,8 +300,10 @@ static int check_exception(struct patterns_data* pdata, const char* message, int
 
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		auth_string_to_cred((char*) sqlite3_column_text(res, 3), &cred);
-		if (cred <= credentials && pattern_match(message, (char*) sqlite3_column_text(res, 1)))
+		auth_string_to_cred((char*) sqlite3_column_text(res, 3), &mincred);
+		auth_string_to_cred((char*) sqlite3_column_text(res, 4), &maxcred);
+
+		if (maxcred >= credentials && mincred <= credentials && pattern_match(message, (char*) sqlite3_column_text(res, 1)))
 		{
 			exception = 1;
 		}
@@ -223,7 +328,8 @@ static int check_message(struct patterns_data* pdata, const char* message, enum 
 	int found = 0;
 	int exception = 0;
 	const char *tail;
-	enum auth_credentials cred;
+	enum auth_credentials mincred;
+	enum auth_credentials maxcred;
 
 	int n = sprintf(query, "SELECT * FROM patterns WHERE type=%d;", type);
 
@@ -231,8 +337,10 @@ static int check_message(struct patterns_data* pdata, const char* message, enum 
 
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		auth_string_to_cred((char*) sqlite3_column_text(res, 3), &cred);
-		if (cred > credentials)
+		auth_string_to_cred((char*) sqlite3_column_text(res, 3), &mincred);
+		auth_string_to_cred((char*) sqlite3_column_text(res, 4), &maxcred);
+		
+		if (mincred > credentials || maxcred < credentials)
 		{
 			found |= pattern_match(message, (char*) sqlite3_column_text(res, 1));
 			if (found)
@@ -261,7 +369,7 @@ static plugin_st check_mainchat(struct plugin_handle* plugin, struct plugin_user
 	
 	if (check_message(pdata, message, t, from->credentials))
 	{    
-		plugin->hub.send_status_message(plugin, from, 000, "Your chat message was not sent due to spam detection.");
+		plugin->hub.send_status_message(plugin, from, 000, "Your chat message was discarded due to spam detection.");
 		return st_deny;
 	}
 
@@ -279,12 +387,16 @@ static plugin_st check_pm(struct plugin_handle* plugin, struct plugin_user* from
 
 	if (check_message(pdata, message, t, from->credentials))
 	{    
-		plugin->hub.send_status_message(plugin, from, 000, "Your private message was not sent due to spam detection.");
+		plugin->hub.send_status_message(plugin, from, 000, "Your private message was discarded due to spam detection.");
 		return st_deny;
 	}
 
 	return st_default;
 }
+
+/*
+ * Perform check on user info.
+ */
 
 static plugin_st check_user_info(struct plugin_handle* plugin, struct plugin_user* user, struct acl_info* data)
 {
@@ -338,9 +450,9 @@ int pattern_string_to_type(const char* str, enum pattern_types* out)
 
 /*
  * Command to add a pattern to the list.
- * Useage: !patternadd <message type> <exception> <min protected credentials> <regexp>
+ * Useage: !patternadd <message type> <min protected credentials> <max protected credentials> <regexp>
  * (It is not needed to quote ("...") the regular expression.)
- * Message type: 1 = mainchat pattern, 2 = PM pattern
+ * Message type: MC = mainchat, PM = private message, NI = nickname, UA = client/user agent 
  */
 
 static int command_patternadd(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
@@ -350,6 +462,7 @@ static int command_patternadd(struct plugin_handle* plugin, struct plugin_user* 
 	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
 	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
 	struct plugin_command_arg_data* arg3 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+	struct plugin_command_arg_data* arg4 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
   
 	char* t = arg1->data.string;
 	enum pattern_types type;
@@ -360,13 +473,14 @@ static int command_patternadd(struct plugin_handle* plugin, struct plugin_user* 
 	}
 	else
 	{
-		enum auth_credentials cred = arg2->data.credentials;
-		char* str = arg3->data.string;
+		enum auth_credentials mincred = arg2->data.credentials;
+		enum auth_credentials maxcred = arg3->data.credentials;
+		char* str = arg4->data.string;
 	  
-		int rc = sql_execute(pdata, null_callback, NULL, "INSERT INTO patterns VALUES(NULL, '%s', %d, '%s');", sql_escape_string(str), type, auth_cred_to_string(cred));
+		int rc = sql_execute(pdata, null_callback, NULL, "INSERT INTO patterns VALUES(NULL, '%s', %d, '%s', '%s');", sql_escape_string(str), type, auth_cred_to_string(mincred), auth_cred_to_string(maxcred));
 	  
 		if (rc > 0)
-			cbuf_append_format(buf, "*** %s: Added pattern \"%s\".", cmd->prefix, str);
+			cbuf_append_format(buf, "*** %s: Added pattern \"%s\" to %s group.", cmd->prefix, str, pattern_type_to_string(type));
 		else
 			cbuf_append_format(buf, "*** %s: Unable to add pattern \"%s\".", cmd->prefix, str);
 	}
@@ -394,7 +508,7 @@ static int command_patterndel(struct plugin_handle* plugin, struct plugin_user* 
 	int rc = sql_execute(pdata, null_callback, NULL, "PRAGMA foreign_keys=ON; DELETE FROM patterns WHERE id=%d;", id);
   
 	if (rc > 0)
-		cbuf_append_format(buf, "*** %s: Deleted pattern with id %d.", cmd->prefix, id);
+		cbuf_append_format(buf, "*** %s: Deleted pattern with id %d and all its exceptions.", cmd->prefix, id);
 	else
 		cbuf_append_format(buf, "*** %s: Unable to delete pattern with id %d.", cmd->prefix, id);
   
@@ -424,7 +538,53 @@ static int command_patternlist(struct plugin_handle* plugin, struct plugin_user*
 
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		cbuf_append_format(buf, "ID: %d, Type: %s, Pattern: \"%s\", Protected credentials: %s\n", sqlite3_column_int(res, 0), pattern_type_to_string((enum pattern_types) sqlite3_column_int(res, 2)), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 3));
+		cbuf_append_format(buf, "ID: %d    Type: %s    Pattern: \"%s\"    Protected credentials: %s-%s\n", sqlite3_column_int(res, 0), pattern_type_to_string((enum pattern_types) sqlite3_column_int(res, 2)), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 3), (char*) sqlite3_column_text(res, 4));
+	}
+
+	sqlite3_finalize(res);
+
+	plugin->hub.send_message(plugin, user, cbuf_get(buf));
+	cbuf_destroy(buf);
+
+	return 0;
+}
+
+/*
+ * Test a pattern. Pattern must be added to the database first.
+ * Usage: !patterntest <ID> <test string>
+ */
+
+static int command_patterntest(struct plugin_handle* plugin, struct plugin_user* user, struct plugin_command* cmd)
+{
+	struct patterns_data* pdata = (struct patterns_data*) plugin->ptr;
+	struct cbuffer* buf = cbuf_create(128);
+	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
+	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+	
+	int id = arg1->data.integer;
+	char* str = arg2->data.string;
+	
+	sqlite3_stmt *res;
+	int error = 0;
+	const char *tail;
+	char query[80];
+
+	cbuf_append_format(buf, "*** %s: ", cmd->prefix);
+
+	int n = sprintf(query, "SELECT regexp FROM patterns WHERE id=%d LIMIT 1;", id);
+
+	error = sqlite3_prepare_v2(pdata->db, query, n, &res, &tail);
+
+	if (sqlite3_step(res) == SQLITE_ROW)
+	{
+		if(pattern_match(str, (char*) sqlite3_column_text(res, 0)))
+			cbuf_append_format(buf, "Tested string \"%s\" matches pattern \"%s\".", str, sqlite3_column_text(res, 0));
+		else
+			cbuf_append_format(buf, "Tested string \"%s\" does not match pattern \"%s\".", str, sqlite3_column_text(res, 0));
+	}
+	else
+	{
+		cbuf_append_format(buf, "Pattern ID \"%d\" not found.", id);
 	}
 
 	sqlite3_finalize(res);
@@ -450,12 +610,14 @@ static int command_patternexadd(struct plugin_handle* plugin, struct plugin_user
 	struct plugin_command_arg_data* arg1 = (struct plugin_command_arg_data*) list_get_first(cmd->args);
 	struct plugin_command_arg_data* arg2 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
 	struct plugin_command_arg_data* arg3 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
+	struct plugin_command_arg_data* arg4 = (struct plugin_command_arg_data*) list_get_next(cmd->args);
   
 	int pattern_id = arg1->data.integer;
-	enum auth_credentials cred = arg2->data.credentials;
-	char* str = arg3->data.string;
+	enum auth_credentials mincred = arg2->data.credentials;
+	enum auth_credentials maxcred = arg3->data.credentials;
+	char* str = arg4->data.string;
   
-	int rc = sql_execute(pdata, null_callback, NULL, "PRAGMA foreign_keys=ON; INSERT INTO pattern_exceptions VALUES(NULL, '%s', %d, '%s');", sql_escape_string(str), pattern_id, auth_cred_to_string(cred));
+	int rc = sql_execute(pdata, null_callback, NULL, "PRAGMA foreign_keys=ON; INSERT INTO pattern_exceptions VALUES(NULL, '%s', %d, '%s', '%s');", sql_escape_string(str), pattern_id, auth_cred_to_string(mincred), auth_cred_to_string(maxcred));
   
 	if (rc > 0)
 		cbuf_append_format(buf, "*** %s: Added pattern exception \"%s\" to pattern ID %d.", cmd->prefix, str, pattern_id);
@@ -515,7 +677,7 @@ static int command_patternexlist(struct plugin_handle* plugin, struct plugin_use
 
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		cbuf_append_format(buf, "ID: %d, Pattern ID: %d, Exception pattern: \"%s\", Min. credentials for exception: %s\n", sqlite3_column_int(res, 0), sqlite3_column_int(res, 2), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 3));
+		cbuf_append_format(buf, "ID: %d    Pattern ID: %d    Exception pattern: \"%s\"    Exempt credentials: %s-%s\n", sqlite3_column_int(res, 0), sqlite3_column_int(res, 2), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 3), (char*) sqlite3_column_text(res, 4));
 	}
 
 	sqlite3_finalize(res);
@@ -529,7 +691,7 @@ static int command_patternexlist(struct plugin_handle* plugin, struct plugin_use
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
 	struct patterns_data* pdata;
-	PLUGIN_INITIALIZE(plugin, "Forbidden patterns plugin", "0.3", "Searches for forbidden patterns in chat messages and user info.");
+	PLUGIN_INITIALIZE(plugin, "Forbidden patterns plugin", "0.4", "Searches for forbidden patterns in chat messages and user info.");
 
 	plugin->funcs.on_chat_msg = check_mainchat;
 	plugin->funcs.on_private_msg = check_pm;
@@ -539,9 +701,15 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 
 	if (!pdata)
 		return -1;
+	
+	if(!create_patterns_table(plugin, pdata))
+		return -1;
+	
+	if(!create_pattern_exceptions_table(plugin, pdata))
+		return -1;
   
 	pdata->command_patternadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternadd_handle, plugin, "patternadd", "mC+m", auth_cred_admin, &command_patternadd, "Add forbidden pattern.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternadd_handle, plugin, "patternadd", "mCC+m", auth_cred_admin, &command_patternadd, "Add forbidden pattern.");
 	plugin->hub.command_add(plugin, pdata->command_patternadd_handle);
 
 	pdata->command_patterndel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
@@ -551,9 +719,13 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	pdata->command_patternlist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
 	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternlist_handle, plugin, "patternlist", "", auth_cred_super, &command_patternlist, "List forbidden patterns.");
 	plugin->hub.command_add(plugin, pdata->command_patternlist_handle);
+	
+	pdata->command_patterntest_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patterntest_handle, plugin, "patterntest", "N+m", auth_cred_super, &command_patterntest, "Test a pattern (must be added first).");
+	plugin->hub.command_add(plugin, pdata->command_patterntest_handle);
 
 	pdata->command_patternexadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexadd_handle, plugin, "patternexadd", "NC+m", auth_cred_admin, &command_patternexadd, "Add exception to a forbidden pattern.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexadd_handle, plugin, "patternexadd", "NCC+m", auth_cred_admin, &command_patternexadd, "Add exception to a forbidden pattern.");
 	plugin->hub.command_add(plugin, pdata->command_patternexadd_handle);
 
 	pdata->command_patternexdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
@@ -565,8 +737,6 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	plugin->hub.command_add(plugin, pdata->command_patternexlist_handle);
 
 	plugin->ptr = pdata;
-	
-	create_tables(plugin);
 	
 	return 0;
 }
@@ -582,12 +752,14 @@ int plugin_unregister(struct plugin_handle* plugin)
 		plugin->hub.command_del(plugin, pdata->command_patternadd_handle);
 		plugin->hub.command_del(plugin, pdata->command_patterndel_handle);
 		plugin->hub.command_del(plugin, pdata->command_patternlist_handle);
+		plugin->hub.command_del(plugin, pdata->command_patterntest_handle);
 		plugin->hub.command_del(plugin, pdata->command_patternexadd_handle);
 		plugin->hub.command_del(plugin, pdata->command_patternexdel_handle);
 		plugin->hub.command_del(plugin, pdata->command_patternexlist_handle);
 		hub_free(pdata->command_patternadd_handle);
 		hub_free(pdata->command_patterndel_handle);
-		hub_free(pdata->command_patternlist_handle);		
+		hub_free(pdata->command_patternlist_handle);
+		hub_free(pdata->command_patterntest_handle);
 		hub_free(pdata->command_patternexadd_handle);
 		hub_free(pdata->command_patternexdel_handle);
 		hub_free(pdata->command_patternexlist_handle);
