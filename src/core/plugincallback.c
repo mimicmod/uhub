@@ -129,6 +129,7 @@ static int cbfunc_command_add(struct plugin_handle* plugin, struct plugin_comman
 	command->args = cmdh->args;
 	command->cred = cmdh->cred;
 	command->description = cmdh->description;
+	command->syntax = cmdh->syntax;
 	command->origin = cmdh->origin;
 	command->handler = plugin_command_dispatch;
 

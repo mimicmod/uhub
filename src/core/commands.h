@@ -29,7 +29,6 @@ struct hub_command;
  * for a a hub command.
  *
  * u = user (must exist in hub session, or will cause error)
- * n = nick name (string)
  * i = CID (must exist in hub)
  * a = (IP) address (must be a valid IPv4 or IPv6 address)
  * r = (IP) address range (either: IP-IP or IP/mask, both IPv4 or IPv6 work)
@@ -51,6 +50,14 @@ struct hub_command;
  * "?N?N" means zero, one, or two integers.
  * "?NN" means zero or two integers.
  * "?+m" means an optional string which may contain spaces that would otherwise be split into separate arguments.
+ * 
+ * MiMic Mod: Additional syntax string added to better describe what arguments should be filled, especially those of string datatype.
+ * Seldom or never used for built-in commands, but useful for plugin commands.
+ * If empty !help command should return only parsed arguments from args member of the struct.
+ * 
+ * Example:
+ * Argument code: "m" ... syntax: reason
+ * Argument code: "+m" ... syntax: -c mincred -C maxcred -d "description" (opt-like string fully parsed by handler)
  */
 struct command_handle
 {
@@ -62,6 +69,7 @@ struct command_handle
 	const char* description;        /**<<< "Description for the command" */
 	const char* origin;             /**<<< "Name of module where the command is implemented." */
 	void* ptr;                      /**<<< "A pointer which will be passed along to the handler. @See hub_command::ptr" */
+	const char* syntax;        	/**<<< "String expression of command syntax, set to better describe args." */
 };
 
 /**

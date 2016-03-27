@@ -353,19 +353,19 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
   
 	data->cmd_joinmsg_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinmsg_handle, plugin, "joinmsg", "?+m", auth_cred_admin, &command_joinmsg, "Set/delete default join message.");
+	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinmsg_handle, plugin, "joinmsg", "?+m", auth_cred_admin, &command_joinmsg, "", "Set/delete default join message.");
 	plugin->hub.command_add(plugin, data->cmd_joinmsg_handle);
 
 	data->cmd_joinset_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinset_handle, plugin, "joinset", "?+m", data->min_cred, &command_joinset, "Set/delete own join message.");
+	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinset_handle, plugin, "joinset", "?+m", data->min_cred, &command_joinset, "", "Set/delete own join message.");
 	plugin->hub.command_add(plugin, data->cmd_joinset_handle);
 
 	data->cmd_joinforce_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinforce_handle, plugin, "joinforce", "n?+m", auth_cred_admin, &command_joinforce, "Force/delete join message for a nick.");
+	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinforce_handle, plugin, "joinforce", "m?+m", auth_cred_admin, &command_joinforce, "<nick> [<message>]", "Force/delete join message for a nick.");
 	plugin->hub.command_add(plugin, data->cmd_joinforce_handle);
 
 	data->cmd_joinlist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinlist_handle, plugin, "joinlist", "", auth_cred_admin, &command_joinlist, "List join messages.");
+	PLUGIN_COMMAND_INITIALIZE(data->cmd_joinlist_handle, plugin, "joinlist", "", auth_cred_admin, &command_joinlist, "", "List join messages.");
 	plugin->hub.command_add(plugin, data->cmd_joinlist_handle);
 
 	plugin->ptr = data;

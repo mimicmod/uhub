@@ -216,10 +216,7 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 				}
 				break;
 
-			case 'n':
 			case 'm':
-			case 'A':
-			case 'T':
 			case 'p':
 				data = hub_malloc(sizeof(*data));
 				data->type = type_string;
@@ -260,7 +257,7 @@ static enum command_parse_status command_extract_arguments(struct hub_info* hub,
 				}
 				break;
 
-      case 't':
+			case 't':
 				data = hub_malloc(sizeof(*data));
 				data->type = type_time;
 				data->data.time = command_string_to_time(token);

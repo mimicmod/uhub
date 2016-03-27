@@ -708,31 +708,31 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
   
 	pdata->command_patternadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternadd_handle, plugin, "patternadd", "mCC+m", auth_cred_admin, &command_patternadd, "Add forbidden pattern.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternadd_handle, plugin, "patternadd", "mCC+m", auth_cred_admin, &command_patternadd, "<type> <min credentials> <max credentials> <pattern>", "Add forbidden pattern.");
 	plugin->hub.command_add(plugin, pdata->command_patternadd_handle);
 
 	pdata->command_patterndel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patterndel_handle, plugin, "patterndel", "N", auth_cred_admin, &command_patterndel, "Delete forbidden pattern.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patterndel_handle, plugin, "patterndel", "N", auth_cred_admin, &command_patterndel, "<pattern id>", "Delete forbidden pattern.");
 	plugin->hub.command_add(plugin, pdata->command_patterndel_handle);
 	
 	pdata->command_patternlist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternlist_handle, plugin, "patternlist", "", auth_cred_super, &command_patternlist, "List forbidden patterns.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternlist_handle, plugin, "patternlist", "", auth_cred_super, &command_patternlist, "", "List forbidden patterns.");
 	plugin->hub.command_add(plugin, pdata->command_patternlist_handle);
 	
 	pdata->command_patterntest_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patterntest_handle, plugin, "patterntest", "N+m", auth_cred_super, &command_patterntest, "Test a pattern (must be added first).");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patterntest_handle, plugin, "patterntest", "N+m", auth_cred_super, &command_patterntest, "<pattern id> <test string>", "Test a pattern (must be added first).");
 	plugin->hub.command_add(plugin, pdata->command_patterntest_handle);
 
 	pdata->command_patternexadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexadd_handle, plugin, "patternexadd", "NCC+m", auth_cred_admin, &command_patternexadd, "Add exception to a forbidden pattern.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexadd_handle, plugin, "patternexadd", "NCC+m", auth_cred_admin, &command_patternexadd, "<pattern id> <min credentials> <max credentials> <exception pattern>", "Add exception to a forbidden pattern.");
 	plugin->hub.command_add(plugin, pdata->command_patternexadd_handle);
 
 	pdata->command_patternexdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexdel_handle, plugin, "patternexdel", "N", auth_cred_admin, &command_patternexdel, "Delete pattern exception.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexdel_handle, plugin, "patternexdel", "N", auth_cred_admin, &command_patternexdel, "<exception id>", "Delete pattern exception.");
 	plugin->hub.command_add(plugin, pdata->command_patternexdel_handle);
 	
 	pdata->command_patternexlist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexlist_handle, plugin, "patternexlist", "", auth_cred_super, &command_patternexlist, "List pattern exceptions.");
+	PLUGIN_COMMAND_INITIALIZE(pdata->command_patternexlist_handle, plugin, "patternexlist", "", auth_cred_super, &command_patternexlist, "", "List pattern exceptions.");
 	plugin->hub.command_add(plugin, pdata->command_patternexlist_handle);
 
 	plugin->ptr = pdata;

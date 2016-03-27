@@ -1792,108 +1792,108 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	if (sql->register_flags > 0)
 	{
 		sql->command_register_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-		PLUGIN_COMMAND_INITIALIZE(sql->command_register_handle, plugin, "register", "p", auth_cred_guest, &command_register, "Register your username.");
+		PLUGIN_COMMAND_INITIALIZE(sql->command_register_handle, plugin, "register", "p", auth_cred_guest, &command_register, "", "Register your username.");
 		plugin->hub.command_add(plugin, sql->command_register_handle);
 	}
 
 	sql->command_password_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_password_handle, plugin, "password", "p", auth_cred_user, &command_password, "Change your own password.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_password_handle, plugin, "password", "p", auth_cred_user, &command_password, "", "Change your own password.");
 	plugin->hub.command_add(plugin, sql->command_password_handle);
 
 	sql->command_useradd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_useradd_handle, plugin, "useradd", "np", auth_cred_operator, &command_useradd, "Register a new user.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_useradd_handle, plugin, "useradd", "mp", auth_cred_operator, &command_useradd, "<nick> <password>", "Register a new user.");
 	plugin->hub.command_add(plugin, sql->command_useradd_handle);
 
 	sql->command_userdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_userdel_handle, plugin, "userdel", "n", auth_cred_operator, &command_userdel, "Delete a registered user.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userdel_handle, plugin, "userdel", "m", auth_cred_operator, &command_userdel, "<nick>", "Delete a registered user.");
 	plugin->hub.command_add(plugin, sql->command_userdel_handle);
 
 	sql->command_userinfo_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_userinfo_handle, plugin, "userinfo", "n", auth_cred_operator, &command_userinfo, "Show registered user info.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userinfo_handle, plugin, "userinfo", "m", auth_cred_operator, &command_userinfo, "<nick>", "Show registered user info.");
 	plugin->hub.command_add(plugin, sql->command_userinfo_handle);
 
 	sql->command_usermod_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_usermod_handle, plugin, "usermod", "nC", auth_cred_admin, &command_usermod, "Modify user credentials.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_usermod_handle, plugin, "usermod", "mC", auth_cred_admin, &command_usermod, "<nick> <credentials>", "Modify user credentials.");
 	plugin->hub.command_add(plugin, sql->command_usermod_handle);
 
 	sql->command_userpass_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_userpass_handle, plugin, "userpass", "np", auth_cred_operator, &command_userpass, "Change password for a user.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userpass_handle, plugin, "userpass", "mp", auth_cred_operator, &command_userpass, "<nick> <password>", "Change password for a user.");
 	plugin->hub.command_add(plugin, sql->command_userpass_handle);
 
 	sql->command_userlist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_userlist_handle, plugin, "userlist", "", auth_cred_operator, &command_userlist, "Show list of all registered users.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_userlist_handle, plugin, "userlist", "", auth_cred_operator, &command_userlist, "", "Show list of all registered users.");
 	plugin->hub.command_add(plugin, sql->command_userlist_handle);
 
 	sql->command_usercleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_usercleanup_handle, plugin, "usercleanup", "NC", auth_cred_super, &command_usercleanup, "Delete inactive user accounts.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_usercleanup_handle, plugin, "usercleanup", "NC", auth_cred_super, &command_usercleanup, "<days> <credentials>", "Delete inactive user accounts.");
 	plugin->hub.command_add(plugin, sql->command_usercleanup_handle);
 
 	sql->command_ban_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_ban_handle, plugin, "ban", "u?+m", auth_cred_super, &command_ban, "Ban user (must be logged in).");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_ban_handle, plugin, "ban", "u?+m", auth_cred_super, &command_ban, "<nick> [<reason>]", "Ban user (must be logged in).");
 	plugin->hub.command_add(plugin, sql->command_ban_handle);
 
 	sql->command_bannick_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_bannick_handle, plugin, "bannick", "n?+m", auth_cred_super, &command_bannick, "Ban nick.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_bannick_handle, plugin, "bannick", "m?+m", auth_cred_super, &command_bannick, "<nick> [<reason>]", "Ban nick.");
 	plugin->hub.command_add(plugin, sql->command_bannick_handle);
 	
 	sql->command_bancid_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_bancid_handle, plugin, "bancid", "m?+m", auth_cred_super, &command_bancid, "Ban CID.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_bancid_handle, plugin, "bancid", "m?+m", auth_cred_super, &command_bancid, "<cid> [<reason>]", "Ban CID.");
 	plugin->hub.command_add(plugin, sql->command_bancid_handle);
 
 	sql->command_banip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_banip_handle, plugin, "banip", "r?+m", auth_cred_super, &command_banip, "Ban IP/range. User disconnected after handshake and is informed by ban message.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_banip_handle, plugin, "banip", "r?+m", auth_cred_super, &command_banip, "<addr range> [<reason>]", "Ban IP/range. User disconnected after handshake and is informed by ban message.");
 	plugin->hub.command_add(plugin, sql->command_banip_handle);
 
 	sql->command_denyip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_denyip_handle, plugin, "denyip", "r", auth_cred_admin, &command_denyip, "Add restricted IP/range. Connection rejected before any messages are sent.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_denyip_handle, plugin, "denyip", "r", auth_cred_admin, &command_denyip, "", "Add restricted IP/range. Connection rejected before any messages are sent.");
 	plugin->hub.command_add(plugin, sql->command_denyip_handle);
 
 	sql->command_tempban_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_tempban_handle, plugin, "tempban", "ut?+m", auth_cred_operator, &command_tempban, "Temporarily ban user (must be logged in).");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_tempban_handle, plugin, "tempban", "ut?+m", auth_cred_operator, &command_tempban, "<nick> <time> [<reason>]", "Temporarily ban user (must be logged in).");
 	plugin->hub.command_add(plugin, sql->command_tempban_handle);
 
 	sql->command_tempbannick_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbannick_handle, plugin, "tempbannick", "nt?+m", auth_cred_operator, &command_tempbannick, "Temporarily ban nick.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbannick_handle, plugin, "tempbannick", "mt?+m", auth_cred_operator, &command_tempbannick, "<nick> <time> [<reason>]", "Temporarily ban nick.");
 	plugin->hub.command_add(plugin, sql->command_tempbannick_handle);
 
 	sql->command_tempbancid_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbancid_handle, plugin, "tempbancid", "mt?+m", auth_cred_operator, &command_tempbancid, "Temporarily ban CID.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbancid_handle, plugin, "tempbancid", "mt?+m", auth_cred_operator, &command_tempbancid, "<cid> <time> [<reason>]", "Temporarily ban CID.");
 	plugin->hub.command_add(plugin, sql->command_tempbancid_handle);
 	
 	sql->command_tempbanip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbanip_handle, plugin, "tempbanip", "rt?+m", auth_cred_operator, &command_tempbanip, "Temporarily ban IP/range.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_tempbanip_handle, plugin, "tempbanip", "rt?+m", auth_cred_operator, &command_tempbanip, "<addr range> <time> [<reason>]", "Temporarily ban IP/range.");
 	plugin->hub.command_add(plugin, sql->command_tempbanip_handle);
 
 	sql->command_protectip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_protectip_handle, plugin, "protectip", "r", auth_cred_admin, &command_protectip, "Protect IP/range against bans.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_protectip_handle, plugin, "protectip", "r", auth_cred_admin, &command_protectip, "", "Protect IP/range against bans.");
 	plugin->hub.command_add(plugin, sql->command_protectip_handle);
 
 	sql->command_natip_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_natip_handle, plugin, "natip", "r", auth_cred_admin, &command_natip, "Add NAT IP/range.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_natip_handle, plugin, "natip", "r", auth_cred_admin, &command_natip, "", "Add NAT IP/range.");
 	plugin->hub.command_add(plugin, sql->command_natip_handle);
 
 	sql->command_mute_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_mute_handle, plugin, "mute", "u?t", auth_cred_operator, &command_mute, "Disallow a user to send chat messages.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_mute_handle, plugin, "mute", "u?t", auth_cred_operator, &command_mute, "<nick> [<time>]", "Disallow a user to send chat messages.");
 	plugin->hub.command_add(plugin, sql->command_mute_handle);
 
 	sql->command_nopm_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_nopm_handle, plugin, "nopm", "u?t", auth_cred_operator, &command_nopm, "Disallow a user to send private messages.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_nopm_handle, plugin, "nopm", "u?t", auth_cred_operator, &command_nopm, "<nick> [<time>]", "Disallow a user to send private messages.");
 	plugin->hub.command_add(plugin, sql->command_nopm_handle);
 
 	sql->command_acl_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_acl_handle, plugin, "acl", "?N?N", auth_cred_operator, &command_acl, "List all ACL rules.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_acl_handle, plugin, "acl", "?N?N", auth_cred_operator, &command_acl, "[<line start> [<lines>]]", "List ACL rules.");
 	plugin->hub.command_add(plugin, sql->command_acl_handle);
 
 	sql->command_aclsearch_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_aclsearch_handle, plugin, "aclsearch", "m", auth_cred_operator, &command_aclsearch, "Search in ACL list for a value.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_aclsearch_handle, plugin, "aclsearch", "m", auth_cred_operator, &command_aclsearch, "<value>", "Search in ACL list for a value.");
 	plugin->hub.command_add(plugin, sql->command_aclsearch_handle);
 
 	sql->command_acldel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_acldel_handle, plugin, "acldel", "N", auth_cred_operator, &command_acldel, "Remove ACL rule.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_acldel_handle, plugin, "acldel", "N", auth_cred_operator, &command_acldel, "<rule id>", "Remove ACL rule.");
 	plugin->hub.command_add(plugin, sql->command_acldel_handle);
 
 	sql->command_aclcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(sql->command_aclcleanup_handle, plugin, "aclcleanup", "", auth_cred_super, &command_aclcleanup, "Delete expired ACL rules.");
+	PLUGIN_COMMAND_INITIALIZE(sql->command_aclcleanup_handle, plugin, "aclcleanup", "", auth_cred_super, &command_aclcleanup, "", "Delete expired ACL rules.");
 	plugin->hub.command_add(plugin, sql->command_aclcleanup_handle);
 
 	plugin->ptr = sql;

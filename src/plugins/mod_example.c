@@ -36,7 +36,7 @@ static void command_register(struct plugin_handle* plugin)
 {
 	struct example_plugin_data* data = (struct example_plugin_data*) hub_malloc(sizeof(struct example_plugin_data));
 	data->example = hub_malloc_zero(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->example, (void*) data, "example", "", auth_cred_guest, example_command_handler, "This is an example command that is added dynamically by loading the mod_example plug-in.");
+	PLUGIN_COMMAND_INITIALIZE(data->example, (void*) data, "example", "", auth_cred_guest, example_command_handler, "", "This is an example command that is added dynamically by loading the mod_example plug-in.");
 	plugin->hub.command_add(plugin, data->example);
 	plugin->ptr = data;
 }

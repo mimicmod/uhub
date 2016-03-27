@@ -359,11 +359,11 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
 
 	ldata->command_userlog_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?m?m", auth_cred_operator, &command_userlog, "Search in userlog for a value.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?m?m", auth_cred_operator, &command_userlog, "[<lines> [<column> [<value>]]]", "Search in userlog for a value.");
 	plugin->hub.command_add(plugin, ldata->command_userlog_handle);
 
 	ldata->command_userlogcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlogcleanup_handle, plugin, "userlogcleanup", "N", auth_cred_admin, &command_userlogcleanup, "Delete log entries.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlogcleanup_handle, plugin, "userlogcleanup", "N", auth_cred_admin, &command_userlogcleanup, "<days>", "Delete log entries.");
 	plugin->hub.command_add(plugin, ldata->command_userlogcleanup_handle);
 
 	plugin->ptr = ldata;

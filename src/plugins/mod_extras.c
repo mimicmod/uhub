@@ -398,39 +398,39 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
   
 	extrasdata->command_hubadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hubadd_handle, plugin, "hubadd", "A+m", auth_cred_admin, &command_hubadd, "Add hub to hublist.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hubadd_handle, plugin, "hubadd", "m+m", auth_cred_admin, &command_hubadd, "<address> <hub name>", "Add hub to hublist.");
 	plugin->hub.command_add(plugin, extrasdata->command_hubadd_handle);
 
 	extrasdata->command_hubdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hubdel_handle, plugin, "hubdel", "N", auth_cred_admin, &command_hubdel, "Delete hub from hublist.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hubdel_handle, plugin, "hubdel", "N", auth_cred_admin, &command_hubdel, "<hub id>", "Delete hub from hublist.");
 	plugin->hub.command_add(plugin, extrasdata->command_hubdel_handle);
 
 	extrasdata->command_hublist_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hublist_handle, plugin, "hublist", "", auth_cred_user, &command_hublist, "List hubs in hublist.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_hublist_handle, plugin, "hublist", "", auth_cred_user, &command_hublist, "", "List hubs in hublist.");
 	plugin->hub.command_add(plugin, extrasdata->command_hublist_handle);
 
 	extrasdata->command_newsadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_newsadd_handle, plugin, "newsadd", "+m", auth_cred_admin, &command_newsadd, "Add news item.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_newsadd_handle, plugin, "newsadd", "+m", auth_cred_admin, &command_newsadd, "", "Add news item.");
 	plugin->hub.command_add(plugin, extrasdata->command_newsadd_handle);
 
 	extrasdata->command_newsdel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_newsdel_handle, plugin, "newsdel", "N", auth_cred_admin, &command_newsdel, "Delete news item.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_newsdel_handle, plugin, "newsdel", "N", auth_cred_admin, &command_newsdel, "<news id>", "Delete news item.");
 	plugin->hub.command_add(plugin, extrasdata->command_newsdel_handle);
 
 	extrasdata->command_news_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_news_handle, plugin, "news", "", auth_cred_user, &command_news, "Show hubnews.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_news_handle, plugin, "news", "", auth_cred_user, &command_news, "", "Show hubnews.");
 	plugin->hub.command_add(plugin, extrasdata->command_news_handle);
 
 	extrasdata->command_releaseadd_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releaseadd_handle, plugin, "releaseadd", "T+m", auth_cred_admin, &command_releaseadd, "Add release.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releaseadd_handle, plugin, "releaseadd", "m+m", auth_cred_admin, &command_releaseadd, "<tth> <title>", "Add release.");
 	plugin->hub.command_add(plugin, extrasdata->command_releaseadd_handle);
 
 	extrasdata->command_releasedel_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releasedel_handle, plugin, "releasedel", "N", auth_cred_admin, &command_releasedel, "Delete release.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releasedel_handle, plugin, "releasedel", "N", auth_cred_admin, &command_releasedel, "<release id>", "Delete release.");
 	plugin->hub.command_add(plugin, extrasdata->command_releasedel_handle);
 
 	extrasdata->command_releases_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releases_handle, plugin, "releases", "", auth_cred_user, &command_releases, "Show releases.");
+	PLUGIN_COMMAND_INITIALIZE(extrasdata->command_releases_handle, plugin, "releases", "", auth_cred_user, &command_releases, "", "Show releases.");
 	plugin->hub.command_add(plugin, extrasdata->command_releases_handle);
 
 	plugin->ptr = extrasdata;

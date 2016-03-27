@@ -324,11 +324,11 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 	create_tables(plugin);
 
 	data->command_history_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->command_history_handle, plugin, "history", "?N", auth_cred_guest, &command_history, "Show chat message history.");
+	PLUGIN_COMMAND_INITIALIZE(data->command_history_handle, plugin, "history", "?N", auth_cred_guest, &command_history, "[<lines>]", "Show chat message history.");
 	plugin->hub.command_add(plugin, data->command_history_handle);
 
 	data->command_historycleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(data->command_historycleanup_handle, plugin, "historycleanup", "", auth_cred_admin, &command_historycleanup, "Clean chat message history.");
+	PLUGIN_COMMAND_INITIALIZE(data->command_historycleanup_handle, plugin, "historycleanup", "", auth_cred_admin, &command_historycleanup, "", "Clean chat message history.");
 	plugin->hub.command_add(plugin, data->command_historycleanup_handle);
 
 	return 0;

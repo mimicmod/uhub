@@ -62,9 +62,10 @@ struct plugin_command_handle
 	plugin_command_handler handler; /**<<< "Function pointer for the command" */
 	const char* description;        /**<<< "Description for the command" */
 	const char* origin;             /**<<< "Name of plugin where the command originated." */
+	const char* syntax;        	/**<<< "String expression of command syntax, set to better describe args." */
 };
 
-#define PLUGIN_COMMAND_INITIALIZE(PTR, HANDLE, PREFIX, ARGS, CRED, CALLBACK, DESC) \
+#define PLUGIN_COMMAND_INITIALIZE(PTR, HANDLE, PREFIX, ARGS, CRED, CALLBACK, SYNTAX, DESC) \
 	do { \
 		PTR->internal_handle = 0; \
 		PTR->handle = HANDLE; \
@@ -74,6 +75,7 @@ struct plugin_command_handle
 		PTR->cred = CRED; \
 		PTR->handler = CALLBACK; \
 		PTR->description = DESC; \
+		PTR->syntax = SYNTAX; \
 	} while (0)
 
 

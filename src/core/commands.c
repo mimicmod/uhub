@@ -109,42 +109,46 @@ struct command_handle* command_handler_lookup(struct command_base* cbase, const 
 
 void command_get_syntax(struct command_handle* handler, struct cbuffer* buf)
 {
-	size_t n, arg_count;
-	int opt = 0;
-	char arg_code, last_arg = -1;
-
 	cbuf_append_format(buf, "!%s", handler->prefix);
-	if (handler->args)
+
+	if (handler->syntax && strlen(handler->syntax))
+		cbuf_append_format(buf, " %s", handler->syntax);
+	else
 	{
-		arg_count = strlen(handler->args);
-		for (n = 0; n < arg_count; n++)
+		size_t n, arg_count;
+		int opt = 0;
+		char arg_code, last_arg = -1;
+
+		if (handler->args)
 		{
-			if (!strchr("?+", last_arg))
-				cbuf_append(buf, " ");
-			arg_code = handler->args[n];
-			switch (arg_code)
+			//cbuf_append(buf, " ");
+			arg_count = strlen(handler->args);
+			for (n = 0; n < arg_count; n++)
 			{
-				case '?': cbuf_append(buf, "["); opt++;      break;
-				case '+': /* ignore */                       break;
-				case 'n': cbuf_append(buf, "<nick>");        break;
-				case 'u': cbuf_append(buf, "<user>");        break;
-				case 'i': cbuf_append(buf, "<cid>");         break;
-				case 'a': cbuf_append(buf, "<addr>");        break;
-				case 'A': cbuf_append(buf, "<addr string>"); break;
-				case 'r': cbuf_append(buf, "<addr range>");  break;
-				case 'm': cbuf_append(buf, "<message>");     break;
-				case 'p': cbuf_append(buf, "<password>");    break;
-				case 'C': cbuf_append(buf, "<credentials>"); break;
-				case 'c': cbuf_append(buf, "<command>");     break;
-				case 'N': cbuf_append(buf, "<number>");      break;
-				case 't': cbuf_append(buf, "<time>");        break;
-				case 'T': cbuf_append(buf, "<tth>");        break;
-				default: LOG_ERROR("unknown argument code '%c'", arg_code);
+				if (!strchr("?+", last_arg))
+					cbuf_append(buf, " ");
+				arg_code = handler->args[n];
+				switch (arg_code)
+				{
+					case '?': cbuf_append(buf, "["); opt++;      break;
+					case '+': /* ignore */                       break;
+					case 'u': cbuf_append(buf, "<user>");        break;
+					case 'i': cbuf_append(buf, "<cid>");         break;
+					case 'a': cbuf_append(buf, "<addr>");        break;
+					case 'r': cbuf_append(buf, "<addr range>");  break;
+					case 'm': cbuf_append(buf, "<message>");     break;
+					case 'p': cbuf_append(buf, "<password>");    break;
+					case 'C': cbuf_append(buf, "<credentials>"); break;
+					case 'c': cbuf_append(buf, "<command>");     break;
+					case 'N': cbuf_append(buf, "<number>");      break;
+					case 't': cbuf_append(buf, "<time>");        break;
+					default: LOG_ERROR("unknown argument code '%c'", arg_code);
+				}
+				last_arg = arg_code;
 			}
-			last_arg = arg_code;
+			while (opt--)
+				cbuf_append(buf, "]");
 		}
-		while (opt--)
-			cbuf_append(buf, "]");
 	}
 }
 
@@ -579,7 +583,7 @@ static int command_stats(struct command_base* cbase, struct hub_user* user, stru
 	return command_status(cbase, user, cmd, buf);
 }
 
-static struct command_handle* add_builtin(struct command_base* cbase, const char* prefix, const char* args, enum auth_credentials cred, command_handler handler, const char* description)
+static struct command_handle* add_builtin(struct command_base* cbase, const char* prefix, const char* args, enum auth_credentials cred, command_handler handler, const char* syntax, const char* description)
 {
 	struct command_handle* handle = (struct command_handle*) hub_malloc_zero(sizeof(struct command_handle));
 	handle->prefix = prefix;
@@ -588,32 +592,33 @@ static struct command_handle* add_builtin(struct command_base* cbase, const char
 	handle->cred = cred;
 	handle->handler = handler;
 	handle->description = description;
+	handle->syntax = syntax;
 	handle->origin = "built-in";
 	handle->ptr = cbase;
 	return handle;
 }
 
-#define ADD_COMMAND(PREFIX, LENGTH, ARGS, CREDENTIALS, FUNCTION, DESCRIPTION) \
-	command_add(cbase, add_builtin(cbase, PREFIX, ARGS, CREDENTIALS, FUNCTION, DESCRIPTION), NULL)
+#define ADD_COMMAND(PREFIX, LENGTH, ARGS, CREDENTIALS, FUNCTION, SYNTAX, DESCRIPTION) \
+	command_add(cbase, add_builtin(cbase, PREFIX, ARGS, CREDENTIALS, FUNCTION, SYNTAX, DESCRIPTION), NULL)
 
 void commands_builtin_add(struct command_base* cbase)
 {
-	ADD_COMMAND("broadcast",  9, "+m",auth_cred_operator,  command_broadcast,"Send a message to all users"  );
-	ADD_COMMAND("getip",      5, "u", auth_cred_operator,  command_getip,    "Show IP address for a user"   );
-	ADD_COMMAND("help",       4, "?c",auth_cred_guest,     command_help,     "Show this help message."      );
-	ADD_COMMAND("kick",       4, "u", auth_cred_operator,  command_kick,     "Kick a user"                  );
-	ADD_COMMAND("log",        3, "?m",auth_cred_operator,  command_log,      "Display log"                  ); // fail
-	ADD_COMMAND("myip",       4, "",  auth_cred_guest,     command_myip,     "Show your own IP."            );
-	ADD_COMMAND("reload",     6, "",  auth_cred_admin,     command_reload,   "Reload configuration files."  );
-	ADD_COMMAND("shutdown",   8, "",  auth_cred_admin,     command_shutdown_hub, "Shutdown hub."            );
-	ADD_COMMAND("stats",      5, "",  auth_cred_super,     command_stats,    "Show hub statistics."         );
-	ADD_COMMAND("uptime",     6, "",  auth_cred_guest,     command_uptime,   "Display hub uptime info."     );
-	ADD_COMMAND("version",    7, "",  auth_cred_guest,     command_version,  "Show hub version info."       );
-	ADD_COMMAND("whoip",      5, "r", auth_cred_operator,  command_whoip,    "Show users matching IP range" );
+	ADD_COMMAND("broadcast",  9, "+m",auth_cred_operator,  command_broadcast,     "", "Send a message to all users"  );
+	ADD_COMMAND("getip",      5, "u", auth_cred_operator,  command_getip,         "", "Show IP address for a user"   );
+	ADD_COMMAND("help",       4, "?c",auth_cred_guest,     command_help,          "", "Show this help message."      );
+	ADD_COMMAND("kick",       4, "u", auth_cred_operator,  command_kick,          "", "Kick a user"                  );
+	ADD_COMMAND("log",        3, "?m",auth_cred_operator,    command_log,         "[<value>]", "Display logout log"           ); // fail
+	ADD_COMMAND("myip",       4, "",  auth_cred_guest,     command_myip,          "", "Show your own IP."            );
+	ADD_COMMAND("reload",     6, "",  auth_cred_admin,     command_reload,        "", "Reload configuration files."  );
+	ADD_COMMAND("shutdown",   8, "",  auth_cred_admin,     command_shutdown_hub,  "", "Shutdown hub."                );
+	ADD_COMMAND("stats",      5, "",  auth_cred_super,     command_stats,         "", "Show hub statistics."         );
+	ADD_COMMAND("uptime",     6, "",  auth_cred_guest,     command_uptime,        "", "Display hub uptime info."     );
+	ADD_COMMAND("version",    7, "",  auth_cred_guest,     command_version,       "", "Show hub version info."       );
+	ADD_COMMAND("whoip",      5, "r", auth_cred_operator,  command_whoip,         "", "Show users matching IP range" );
 
 #ifdef DEBUG_UNLOAD_PLUGINS
-	ADD_COMMAND("load",       4, "",  auth_cred_admin,     command_load,     "Load plugins."                );
-	ADD_COMMAND("unload",     6, "",  auth_cred_admin,     command_unload,   "Unload plugins."              );
+	ADD_COMMAND("load",       4, "",  auth_cred_admin,     command_load,          "", "Load plugins."                );
+	ADD_COMMAND("unload",     6, "",  auth_cred_admin,     command_unload,        "", "Unload plugins."              );
 #endif /* DEBUG_UNLOAD_PLUGINS */
 }
 
