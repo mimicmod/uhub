@@ -1035,6 +1035,9 @@ void hub_set_variables(struct hub_info* hub, struct acl_handle* acl)
 		tmp = adc_msg_escape(hub->config->hub_description);
 		adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_DESCRIPTION, tmp);
 		hub_free(tmp);
+
+		if (hub->config->failover_redirect_addr && strlen(hub->config->failover_redirect_addr))
+			adc_msg_add_named_argument(hub->command_info, ADC_INF_FLAG_FAILOVER_ADDR, hub->config->failover_redirect_addr);
 	}
 
 	hub->command_support = adc_msg_construct(ADC_CMD_ISUP, 6 + strlen(ADC_PROTO_SUPPORT));

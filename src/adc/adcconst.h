@@ -127,6 +127,7 @@ typedef uint32_t fourcc_t;
 #define ADC_INF_FLAG_AWAY               "AW" /* away flag, 1=away, 2=extended away */
 #define ADC_INF_FLAG_REFERER            "RF" /* URL to referer in case of hub redirect */
 #define ADC_INF_FLAG_EMAIL              "EM" /* E-mail address */
+#define ADC_INF_FLAG_FAILOVER_ADDR      "FO" /* Redirect address(es) used by client when hub goes offline */
 
 #define ADC_MSG_FLAG_ACTION             "ME" /* message is an *action* message */
 #define ADC_MSG_FLAG_PRIVATE            "PM" /* message is a private message */

@@ -148,6 +148,21 @@
 		<since>0.3.2</since>
 	</option>
 
+	<option name="failover_redirect_addr" type="string" default="">
+		<check regexp="(adcs?|dchub)://.*" />
+		<short>Failover redirect address.</short>
+		<description><![CDATA[
+		This is the redirect address clients should use when hub goes offline suddenly. Sent to clients during handshake. Use comma separated list for multiple hubs (no spaces allowed).
+		]]></description>
+		<since>0.5.0</since>
+		<example><![CDATA[
+			1 hub:<br />
+			failover_redirect_addr = adc://example.com:1511<br />
+			3 hubs:<br />
+			failover_redirect_addr = adc://example1.com:1511,dchub://example2.com:411,adc://example3.com:1511<br />
+		]]></example>
+	</option>
+
 
 	<option name="max_recv_buffer" type="int" default="4096" advanced="true" >
 		<check min="1024" max="1048576" />
