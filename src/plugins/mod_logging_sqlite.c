@@ -249,9 +249,30 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 {
 	struct log_data* ldata = (struct log_data*) plugin->ptr;
 	struct cbuffer* buf = cbuf_create(128);
-	struct plugin_command_arg_data* arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
-	struct plugin_command_arg_data* arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
-	struct plugin_command_arg_data* arg3 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	size_t argnum = list_size(cmd->args);
+	struct plugin_command_arg_data* arg1 = NULL;
+	struct plugin_command_arg_data* arg2 = NULL;
+	struct plugin_command_arg_data* arg3 = NULL;
+	
+	if (argnum == 3)
+	{
+		arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+		arg2 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+		arg3 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_string);
+	}
+	else
+	{
+		if (argnum == 2)
+		{
+			cbuf_append_format(buf, "*** %s: Missing search pattern.", cmd->prefix);
+			plugin->hub.send_message(plugin, user, cbuf_get(buf));
+			cbuf_destroy(buf);
+			return 0;
+		}
+		if (argnum == 1)
+			arg1 = plugin->hub.command_arg_next(plugin, cmd, plugin_cmd_arg_type_integer);
+	}
+
 	int lines = arg1 ? arg1->data.integer : 20;
 	char* column = arg2 ? arg2->data.string : "";
 	char* search = arg3 ? arg3->data.string : "";
@@ -270,7 +291,7 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 	{
 		if(!check_column(column))
 		{
-			cbuf_append_format(buf, "*** %s: Invalid column. Valid columns are: nick, cid, addr, credentials, useragent, message, time, all.\n", cmd->prefix);
+			cbuf_append_format(buf, "*** %s: Invalid column. Valid columns are: nick, cid, addr, credentials, useragent, message, all.", cmd->prefix);
 			plugin->hub.send_message(plugin, user, cbuf_get(buf));
 			cbuf_destroy(buf);
 			return 0;
@@ -279,17 +300,17 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 		if (strcmp(column, "message") == 0)
 		{
 			sprintf(query, "SELECT * FROM userlog WHERE message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, lines);
-			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"message\".\n", cmd->prefix, search);
+			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"message\".", cmd->prefix, search);
 		}
 		else if (strcmp(column, "all") == 0)
 		{
 			sprintf(query, "SELECT * FROM userlog WHERE nick='%s' OR cid='%s' OR credentials='%s' OR useragent='%s' OR addr='%s' OR message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, search, search, search, search, search, lines);
-			cbuf_append_format(buf, "*** %s: Search_ing for \"%s\" in all columns.\n", cmd->prefix, search);
+			cbuf_append_format(buf, "*** %s: Search_ing for \"%s\" in all columns.", cmd->prefix, search);
 		}
 		else
 		{
 			sprintf(query, "SELECT * FROM userlog WHERE %s='%s' ORDER BY time DESC LIMIT %d;", column, search, lines);
-			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"%s\".\n", cmd->prefix, search, column);
+			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"%s\".", cmd->prefix, search, column);
 		}
 	}
 	else
@@ -302,14 +323,18 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
     
 	while (sqlite3_step(res) == SQLITE_ROW)
 	{
-		cbuf_append_format(buf, "[%s] %s, %s [%s] [%s] \"%s\" - %s\n", (char*) sqlite3_column_text(res, 6), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 0), (char*) sqlite3_column_text(res, 3), (char*) sqlite3_column_text(res, 2), (char*) sqlite3_column_text(res, 4), (char*) sqlite3_column_text(res, 5));
+		cbuf_append_format(buf, "\n[%s] %s, %s [%s] [%s] \"%s\" - %s", (char*) sqlite3_column_text(res, 6), (char*) sqlite3_column_text(res, 1), (char*) sqlite3_column_text(res, 0), (char*) sqlite3_column_text(res, 3), (char*) sqlite3_column_text(res, 2), (char*) sqlite3_column_text(res, 4), (char*) sqlite3_column_text(res, 5));
 		count++;
 	}
 
 	if (error || count == 0)
-		cbuf_append(buf, "No log entries found.\n");
+	{
+		if (search_len && column_len)
+			cbuf_append(buf, "\n");
+		cbuf_append(buf, "No log entries found.");
+	}
 	else
-		cbuf_append_format(buf, "\n%zd entr%s shown\n", count, count != 1 ? "ies" : "y");
+		cbuf_append_format(buf, "\n\n%zd entr%s shown", count, count != 1 ? "ies" : "y");
 
 	sqlite3_finalize(res);
   
@@ -344,7 +369,7 @@ static int command_userlogcleanup(struct plugin_handle* plugin, struct plugin_us
 
 int plugin_register(struct plugin_handle* plugin, const char* config)
 {
-	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.4", "Logs users entering and leaving the hub to SQLite database.");
+	PLUGIN_INITIALIZE(plugin, "SQLite logging plugin", "0.5", "Logs users entering and leaving the hub to SQLite database.");
 
 	struct log_data* ldata;
 
@@ -359,7 +384,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
 
 	ldata->command_userlog_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?m?m", auth_cred_operator, &command_userlog, "[<lines> [<column> [<value>]]]", "Search in userlog for a value.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?mm", auth_cred_operator, &command_userlog, "[<lines> [<column> [<search pattern>]]]", "Search in userlog for a value.");
 	plugin->hub.command_add(plugin, ldata->command_userlog_handle);
 
 	ldata->command_userlogcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
