@@ -390,6 +390,10 @@ static int check_user_agent(struct hub_info* hub, struct hub_user* user, struct 
 		str = adc_msg_unescape(ua_version_encoded);
 		if (str)
 		{
+			if (offset) {
+				memcpy(user->id.user_agent + offset, " ", MIN(strlen(str), MAX_UA_LEN - offset));
+				offset++;
+			}
 			memcpy(user->id.user_agent + offset, str, MIN(strlen(str), MAX_UA_LEN - offset));
 			hub_free(str);
 		}

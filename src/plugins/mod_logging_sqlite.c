@@ -297,19 +297,14 @@ static int command_userlog(struct plugin_handle* plugin, struct plugin_user* use
 			return 0;
 		}
 
-		if (strcmp(column, "message") == 0)
+		if (strcmp(column, "all") == 0)
 		{
-			sprintf(query, "SELECT * FROM userlog WHERE message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, lines);
-			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"message\".", cmd->prefix, search);
-		}
-		else if (strcmp(column, "all") == 0)
-		{
-			sprintf(query, "SELECT * FROM userlog WHERE nick='%s' OR cid='%s' OR credentials='%s' OR useragent='%s' OR addr='%s' OR message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, search, search, search, search, search, lines);
+			sprintf(query, "SELECT * FROM userlog WHERE nick LIKE '%%%s%%' OR cid LIKE '%%%s%%' OR credentials LIKE '%%%s%%' OR useragent LIKE '%%%s%%' OR addr LIKE '%%%s%%' OR message LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", search, search, search, search, search, search, lines);
 			cbuf_append_format(buf, "*** %s: Search_ing for \"%s\" in all columns.", cmd->prefix, search);
 		}
 		else
 		{
-			sprintf(query, "SELECT * FROM userlog WHERE %s='%s' ORDER BY time DESC LIMIT %d;", column, search, lines);
+			sprintf(query, "SELECT * FROM userlog WHERE %s LIKE '%%%s%%' ORDER BY time DESC LIMIT %d;", column, search, lines);
 			cbuf_append_format(buf, "*** %s: Searching for \"%s\" in column \"%s\".", cmd->prefix, search, column);
 		}
 	}
@@ -384,7 +379,7 @@ int plugin_register(struct plugin_handle* plugin, const char* config)
 		return -1;
 
 	ldata->command_userlog_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));
-	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?mm", auth_cred_operator, &command_userlog, "[<lines> [<column> [<search pattern>]]]", "Search in userlog for a value.");
+	PLUGIN_COMMAND_INITIALIZE(ldata->command_userlog_handle, plugin, "userlog", "?N?mm", auth_cred_operator, &command_userlog, "[<lines> [<column> <search pattern>]]", "Search in userlog for a value.");
 	plugin->hub.command_add(plugin, ldata->command_userlog_handle);
 
 	ldata->command_userlogcleanup_handle = (struct plugin_command_handle*) hub_malloc(sizeof(struct plugin_command_handle));

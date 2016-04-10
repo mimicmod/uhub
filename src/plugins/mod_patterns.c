@@ -407,7 +407,7 @@ static plugin_st check_user_info(struct plugin_handle* plugin, struct plugin_use
 	
 	if (check_message(pdata, user->nick, t, user->credentials))
 	{    
-		plugin->hub.send_status_message(plugin, user, 000, "Your nickname matches a forbidden pattern.");
+		plugin->hub.send_status_message(plugin, user, 000, "Your nickname matches a forbidden pattern. Change it and return back.");
 		return st_deny;
 	}
 	
@@ -415,7 +415,7 @@ static plugin_st check_user_info(struct plugin_handle* plugin, struct plugin_use
 	
 	if (check_message(pdata, user->user_agent, t, user->credentials))
 	{    
-		plugin->hub.send_status_message(plugin, user, 000, "Your client matches a forbidden pattern.");
+		plugin->hub.send_status_message(plugin, user, 000, "Your client is forbidden on this hub. Download a new client and return back.");
 		return st_deny;
 	}
 
